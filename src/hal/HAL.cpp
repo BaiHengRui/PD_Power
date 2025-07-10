@@ -14,5 +14,7 @@ void HAL::Sys_Init() {
 }
 
 void HAL::Sys_Run() {
+    INA22x_Run();
+    GPIO_Run();
     
 }
