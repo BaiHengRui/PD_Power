@@ -2,7 +2,7 @@
 #define CONFIG_H
 // Build Version
 // >Major Minor Patch (Language)
-#define FirmwareVer "1.0.0"
+#define FirmwareVer "1.0.0b"
 
 #define I2C_SDA_PIN 36
 #define I2C_SCL_PIN 35

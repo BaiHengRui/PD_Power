@@ -27,6 +27,9 @@ void HAL::Sys_Init() {
     Free_Flash_Size = ESP.getFreeSketchSpace() / 1024; // Remaining flash size in KB
     Sketch_Size = ESP.getSketchSize() / 1024; // Program size in KB
     Serial.println("System Init Complete!");
+
+    HAL::WebUpdate();
+    OTA_Update_Status =1;
 }
 
 /* System Loop */
@@ -72,8 +75,7 @@ void HAL::DeleteWiFiConfig(){
     delay(10);
 }
 
-/* OTA */
-void HAL::WebUpdate(){
+void HAL::WiFiConnect(){
     connect_time_out = millis();
     // Serial.println("Web OTA Mode");
     HAL::ReadWiFiConfig();
@@ -115,71 +117,93 @@ void HAL::WebUpdate(){
         Serial.println(WiFi.localIP());
     }
     
-    if (!MDNS.begin(host))//host = 80(http)
-    {
-        Serial.println("mDNS服务启动失败！");
-        while (1)
-        {
+}
+
+/* OTA */
+void HAL::WebUpdate() {
+    HAL::WiFiConnect();
+    if (!MDNS.begin(host)) {
+        Serial.println("mDNS服务初始化失败!");
+        while (1) {
             delay(1000);
         }
     }
-    Serial.println("mDNS服务启动成功！");
-    Serial.print("局域网OTA更新网址: ");
-    Serial.println("http://esp32.local");
-    //网页服务
-    server.on("/",HTTP_GET,[](){
-        server.sendHeader("Connection","close");
-        server.send(200,"text/html",serverIndex);
+    Serial.println("mDNS服务初始化成功!");
+    Serial.print("本地升级URL: http://");
+    Serial.print(host);
+    Serial.println(".local");
+
+    // 添加设备信息端点
+    server.on("/info", HTTP_GET, []() {
+        String ipAddress = WiFi.localIP().toString();
+        String SketchMD5 = ESP.getSketchMD5();
+        // 创建JSON响应
+        String json = "{";
+        json += "\"version\":\"" + String(FirmwareVer) + "\",";
+        json += "\"freeFlash\":" + String(ESP.getFreeSketchSpace() / 1024) + ",";
+        json += "\"SNID\":\"" + String(SNID,HEX) + "\",";
+        json += "\"ipAddress\":\"" + ipAddress + "\"";
+        // json += "\"SketchMD5\":\"" + String(SketchMD5) + "\"";
+        json += "}";
+        
+        server.send(200, "application/json", json);
     });
-    //上传固件
-    server.on("/update", HTTP_POST,[](){
+
+    // 添加进度查询端点
+    server.on("/progress", HTTP_GET, []() {
+        server.send(200, "text/plain", String(OTA_Progress));
+    });
+
+    // 网页服务
+    server.on("/", HTTP_GET, []() {
+        server.sendHeader("Connection", "close");
+        server.send(200, "text/html", serverIndex); // serverIndex 是美化后的前端HTML
+    });
+
+    // 上传固件
+    server.on("/update", HTTP_POST, []() {
         server.sendHeader("Connection", "close");
         server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+        delay(1000); // 给前端一点时间显示完成状态
         ESP.restart();
-    },[](){
+    }, []() {
         HTTPUpload& upload = server.upload();
-        if (upload.status == UPLOAD_FILE_START)
-        {
-            Serial.printf("文件名称: %s\n", upload.filename.c_str());
-            Serial.printf("当前写入大小(Byte):%u\n",upload.currentSize);
-            Serial.print("开始写入...");
-            if (!Update.begin(UPDATE_SIZE_UNKNOWN))
-            {
-                Update.printError(Serial);
-            }  
-        }else if (upload.status == UPLOAD_FILE_WRITE)
-        {
-            //写入固件
-            if (Update.write(upload.buf, upload.currentSize) != upload.currentSize)
-            {
+        static uint32_t totalSize = 0;       // 总大小
+        static uint32_t writtenSize = 0;     // 已写入大小
+
+        if (upload.status == UPLOAD_FILE_START) {
+            Serial.printf("Update Start: %s\n", upload.filename.c_str());
+            totalSize = upload.totalSize;
+            writtenSize = 0;
+            OTA_Progress = 0;
+
+            if (Update.begin(UPDATE_SIZE_UNKNOWN)) {
+                Serial.println("Update begin successfully");
+            } else {
                 Update.printError(Serial);
             }
-            static int LastProgress = 0;//上一次进度
-            if (upload.totalSize >0)// 避免除零错误
-            {
-                OTA_Progress = 100 - ((upload.currentSize *100) / upload.totalSize);//计算当前上传进度
-                //显示状态
-                if (OTA_Progress != LastProgress) //更新进度
-                {
-                    LastProgress = OTA_Progress;
-                }
-            } 
-        }else if (upload.status == UPLOAD_FILE_END)
-        {
-            if (Update.end(true))
-            {
-                //显示结束
-                OTA_Progress = 0;
-                OTA_Update_Status = 0;
-                Serial.printf("更新完成大小(Byte): %u\n", upload.totalSize);
-                Serial.print("服务关闭,即将重启");
-                delay(5000);//5s重启
-            }else
-            {
-                //显示OTA失败
+        } else if (upload.status == UPLOAD_FILE_WRITE) {
+            // 写入固件
+            if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+                Update.printError(Serial);
+            }
+            writtenSize += upload.currentSize;
+
+            // 计算进度（百分比）
+            if (totalSize > 0) {
+                OTA_Progress = (writtenSize * 100) / totalSize;
+            }
+            Serial.printf("Progress: %d%%\n", OTA_Progress);
+        } else if (upload.status == UPLOAD_FILE_END) {
+            if (Update.end(true)) { // true表示更新完成后设置重启标志
+                OTA_Progress = 100;
+                Serial.printf("Update Success: %u bytes\n", writtenSize);
+            } else {
                 Update.printError(Serial);
             }
         }
     });
+
     server.begin();
+    // OTA_Update_Status = 1; // 标记OTA更新状态为进行中
 }

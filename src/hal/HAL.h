@@ -11,6 +11,7 @@ namespace HAL
     /* system */
     void Sys_Init();
     void Sys_Run();
+    void WiFiConnect();
     void WebUpdate();
     void SaveWiFiConfig();
     void ReadWiFiConfig();
