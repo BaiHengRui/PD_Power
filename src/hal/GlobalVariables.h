@@ -38,6 +38,7 @@ extern int ccbus_used; // CC线状态 0/NULL 1/CC
 extern uint64_t SNID;
 extern int32_t NowTime, LastTime;
 extern int OTA_Progress;
+extern bool OTA_Update_Status;
 extern int Now_App;
 extern int All_Apps;
 extern int LastApp;

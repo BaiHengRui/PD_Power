@@ -8,6 +8,7 @@
 #define I2C_SCL_PIN 45
 #define FUSB302_INT_PIN 38
 #define LCD_BL_PIN 9
+#define BUZZER_PIN 33
 #define DN_PIN 4
 #define DP_PIN 7
 #define CC1_PIN 5
@@ -18,5 +19,6 @@
 #define SW3 18
 #define SW4 17
 
+#define BUZZER_FREQUENCY 4000 // Buzzer frequency in Hz
 
 #endif
