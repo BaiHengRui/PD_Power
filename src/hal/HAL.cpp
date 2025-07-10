@@ -12,3 +12,7 @@ void HAL::Sys_Init() {
     LCD_Init();
 
 }
+
+void HAL::Sys_Run() {
+    
+}
