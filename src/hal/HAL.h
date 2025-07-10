@@ -38,7 +38,16 @@ namespace HAL
     void UI_Main();
     void UI_VBUS_Curve();
     void UI_PowerDelivery();
+    void UI_QuickCharge();
     void UI_LOG();
+    void UI_Menu();
+    void UI_Setting();
+    void UI_SystemInfo();
+    void UI_OTA_Update();
+    void UI_OTA_Finish();
+    void UI_OTA_Fail();
+    void UI_WiFi_Connect();
+    void UI_WiFi_Connect_Fail();
 
     typedef struct
     {
