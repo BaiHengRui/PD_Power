@@ -13,6 +13,10 @@
 #define CC1_PIN 5
 #define CC2_PIN 6
 #define NTC_PIN 8
+#define SW1 0
+#define SW2 21
+#define SW3 18
+#define SW4 17
 
 
 #endif
