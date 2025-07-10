@@ -1,5 +1,4 @@
 #include "HAL.h"
-#include "GlobalVariables.h"
 #include "Config.h"
 
 void HAL::GPIO_Init() {

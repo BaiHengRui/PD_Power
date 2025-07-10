@@ -12,9 +12,9 @@ void HAL::INA22x_Init(){
     {
         while (!ina.begin())
         {
-            delay(50);
+            delay(100);
             Wire.end(); //关闭I2C
-            delay(50);
+            delay(100);
             Wire.begin(36,35); //开发板引脚
             ina.begin(0x40);
             break;

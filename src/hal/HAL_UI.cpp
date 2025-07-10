@@ -1,5 +1,4 @@
 #include "HAL.h"
-#include "GlobalVariables.h"
 #include "Config.h"
 #include "Fonts/Font1_12.h"
 
@@ -18,16 +17,34 @@ float powerMax = 50;
 float powerMin = 0;
 
 void HAL::LCD_Init(){
-    analogWrite(LCD_BL_PIN,0);
+    // analogWrite(LCD_BL_PIN,0);
     spr.init();
     spr.invertDisplay(LCD_InvertDisplay);
     spr.setRotation(LCD_Rotation);
 
-    int light_temp = EEPROM.read(EEPROM_Light_addr);
-    int rotation_temp = EEPROM.read(EEPROM_Rotation_addr);
-    LCD_Light = (light_temp >=1 && light_temp <=100) ? light_temp : LCD_Light;
-    LCD_Rotation = (rotation_temp >=0 && rotation_temp <= 3) ? rotation_temp : LCD_Rotation;
+    int Light_temp = EEPROM.read(EEPROM_Light_addr);
+    int Rotation_temp = EEPROM.read(EEPROM_Rotation_addr);
+    LCD_Light = (Light_temp >=1 && Light_temp <=100) ? Light_temp : LCD_Light;
+    LCD_Rotation = (Rotation_temp >=0 && Rotation_temp <= 3) ? Rotation_temp : LCD_Rotation;
+    if(Light_temp >=1 && Light_temp <=100){EEPROM.write(EEPROM_Light_addr,LCD_Light);EEPROM.commit();}
+    if(Rotation_temp >=0 && Rotation_temp <=3){EEPROM.write(EEPROM_Rotation_addr,LCD_Rotation);EEPROM.commit();}
+}
 
+void HAL::LCD_Light_Updat(int light, bool saved){
+    light = constrain(light,1,100);//限制大小
+    int light_pwm = 255 - ((100 - light) * 1.5);
+    analogWrite(LCD_BL_PIN,light_pwm);
+    if(saved == 1){EEPROM.write(EEPROM_Light_addr,light);EEPROM.commit();}
+}
+
+void HAL::LCD_Rotation_Update(int rotation, bool saved){
+    LCD_Rotation = constrain(rotation,0,3);
+    tft.setRotation(LCD_Rotation);
+    if(saved == 1){EEPROM.write(EEPROM_Rotation_addr,LCD_Rotation);EEPROM.commit();}
+}
+
+void HAL::LCD_Refresh_Screen(uint32_t bgcolor){
+    spr.fillScreen(bgcolor);
 }
 
 void HAL::UI_Main(){
@@ -36,9 +53,10 @@ void HAL::UI_Main(){
     spr.setTextDatum(CC_DATUM);
     spr.setColorDepth(8);
     spr.setTextColor(TFT_WHITE);
-    // spr.loadFont();
-
-    // spr.unloadFont();
+    spr.loadFont(Font1_12);
+    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
+    spr.print("HELLO, PD Power!");
+    spr.unloadFont();
     spr.pushSprite(0, 0);
     spr.deleteSprite();
 }

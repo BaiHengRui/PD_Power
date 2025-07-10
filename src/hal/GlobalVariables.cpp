@@ -1,6 +1,6 @@
 #include "GlobalVariables.h"
 
-int LCD_InvertDisplay = 0; // 0: Normal, 1: Inverted
+int LCD_InvertDisplay = 1; // 0: Normal, 1: Inverted
 int LCD_Light = 50; // 0-100% brightness
 int LCD_Rotation = 0; // 0: 0 degrees, 1: 90 degrees, 2: 180 degrees, 3: 270 degrees
 

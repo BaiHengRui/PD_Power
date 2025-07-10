@@ -4,8 +4,9 @@
 // >Major Minor Patch (Language)
 #define FirmwareVer "1.0.0"
 
-#define I2C_SDA_PIN 46
-#define I2C_SCL_PIN 45
+#define I2C_SDA_PIN 36
+#define I2C_SCL_PIN 35
+
 #define FUSB302_INT_PIN 38
 #define LCD_BL_PIN 9
 #define BUZZER_PIN 33

@@ -35,6 +35,9 @@ namespace HAL
 
     /* ui */
     void LCD_Init();
+    void LCD_Light_Updat(int light, bool saved);
+    void LCD_Rotation_Update(int rotation, bool saved);
+    void LCD_Refresh_Screen(uint32_t bgcolor =0x0000);
     void UI_Main();
     void UI_VBUS_Curve();
     void UI_PowerDelivery();
@@ -53,12 +56,6 @@ namespace HAL
     {
         bool BuzzerMute; // Buzzer mute status
     } Buzzer_status_t;
-
-    struct config_type
-    {
-        char ssid[32]; // 配网WiFi的SSID
-        char psw[64];  // 配网WiFi的Password
-    };config_type wificonf = {{""}, {""}};
 
 }
 

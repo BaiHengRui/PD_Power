@@ -1,32 +1,41 @@
 #include "HAL.h"
 #include "Library.h"
-#include "GlobalVariables.h"
 #include "Config.h"
 #include "html/ota.h"
 
 const char* host = "esp32";
 WebServer server(80);
 WiFiManager wm;
-
+struct config_type
+{
+    char ssid[32]; // 配网WiFi的SSID
+    char psw[64];  // 配网WiFi的Password
+};config_type wificonf = {{""}, {""}};
 long connect_time_out;
 
 /* System Init */
 void HAL::Sys_Init() {
+    Serial.begin(115200);
+    EEPROM.begin(1024); // Initialize EEPROM with 1024 bytes
+    Wire.begin(I2C_SDA_PIN,I2C_SCL_PIN);
+    HAL::GPIO_Init();
+    HAL::INA22x_Init();
+    HAL::PD_Init();
+    HAL::Buzzer_Init();
+    HAL::LCD_Init();
     SNID = ESP.getEfuseMac();
     Free_Flash_Size = ESP.getFreeSketchSpace() / 1024; // Remaining flash size in KB
     Sketch_Size = ESP.getSketchSize() / 1024; // Program size in KB
-    GPIO_Init();
-    INA22x_Init();
-    PD_Init();
-    Buzzer_Init();
-    LCD_Init();
+    Serial.println("System Init Complete!");
 }
 
 /* System Loop */
 void HAL::Sys_Run() {
-    INA22x_Run();
-    GPIO_Run();
+    HAL::INA22x_Run();
+    HAL::GPIO_Run();
     if(OTA_Update_Status == 1){server.handleClient();}
+    HAL::UI_VBUS_Curve();
+    digitalWrite(LCD_BL_PIN,50);
 }
 
 /* Save WiFi to EEPROM */
@@ -67,7 +76,7 @@ void HAL::DeleteWiFiConfig(){
 void HAL::WebUpdate(){
     connect_time_out = millis();
     // Serial.println("Web OTA Mode");
-    ReadWiFiConfig();
+    HAL::ReadWiFiConfig();
     WiFi.begin(wificonf.ssid,wificonf.psw);
     //显示
     Serial.println("WiFi Mode:" + String(WiFi.getMode()));
@@ -100,8 +109,8 @@ void HAL::WebUpdate(){
         Serial.println(WiFi.psk().c_str());
         strcpy(wificonf.ssid,WiFi.SSID().c_str());
         stpcpy(wificonf.psw,WiFi.psk().c_str());
-        SaveWiFiConfig();
-        ReadWiFiConfig();
+        HAL::SaveWiFiConfig();
+        HAL::ReadWiFiConfig();
         Serial.print("IP地址: ");
         Serial.println(WiFi.localIP());
     }
@@ -173,5 +182,4 @@ void HAL::WebUpdate(){
         }
     });
     server.begin();
-    
 }
