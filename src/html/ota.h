@@ -8,6 +8,7 @@ R"=====(
     <title>OTA Update</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        /* 样式保持不变 */
         :root {
             --primary: #4a86e8;
             --primary-light: #6da6ff;
@@ -44,10 +45,22 @@ R"=====(
         }
         
         .card-header {
-            background: rgba(52, 152, 219, 0.9);
-            padding: 20px;
-            text-align: center;
+            background: linear-gradient(135deg, #3498db, #3498db);
+            padding: 15px 20px;
             border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-title {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        
+        .ip-container {
+            font-size: 0.9rem;
         }
         
         .card-body {
@@ -56,12 +69,12 @@ R"=====(
         
         .progress-container {
             margin: 25px 0;
-            background:rgb(164, 206, 249);
+            background: #e0e0e0;
             border-radius: 10px;
             overflow: hidden;
             height: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.9);
-            position: relative; /* 添加相对定位 */
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            position: relative;
         }
         
         .progress-bar {
@@ -71,11 +84,11 @@ R"=====(
             justify-content: center;
             font-weight: bold;
             transition: width 0.3s ease;
-            background-color: var(--primary);
+            background: linear-gradient(90deg, #3498db, #2ecc71);
         }
         
         .progress-text {
-            position: absolute; /* 绝对定位 */
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
@@ -84,15 +97,24 @@ R"=====(
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            z-index: 10; /* 确保文字在进度条上方 */
-            pointer-events: none; /* 避免干扰点击事件 */
+            z-index: 10;
+            pointer-events: none;
+            color: #333;
         }
         
         .status-card {
-            border: 1px solid rgba(36, 36, 36, 0.9);
+            border: 1px solid rgba(0, 0, 0, 0.1);
             border-radius: 10px;
             padding: 15px;
             margin-top: 20px;
+            background: rgba(245, 245, 245, 0.7);
+        }
+        
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
         }
         
         .status-item {
@@ -102,25 +124,27 @@ R"=====(
         }
         
         .btn-primary {
-            background: var(--primary);
+            background: linear-gradient(to bottom, #3498db, #3498db);
             border: none;
             transition: all 0.3s;
             width: 100%;
             padding: 12px;
             font-weight: bold;
             letter-spacing: 1px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         
         .btn-primary:hover {
-            background: #2980b9;
+            background: linear-gradient(to bottom, #2980b9, #1c6ca4);
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
         }
         
         .btn-primary:disabled {
-            background: #7f8c8d;
-            transform: none;
-            box-shadow: none;
+            background: #95a5a6 !important;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
         }
         
         .device-info {
@@ -129,7 +153,7 @@ R"=====(
             text-align: center;
             margin-top: 20px;
             padding-top: 15px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
         }
         
         .info-box {
@@ -164,7 +188,7 @@ R"=====(
         }
         
         .instructions {
-            background: rgba(231, 76, 60, 0.2);
+            background: rgba(231, 76, 60, 0.1);
             border-left: 4px solid var(--danger);
             padding: 10px 15px;
             margin: 20px 0;
@@ -191,31 +215,52 @@ R"=====(
         
         .ip-address {
             font-family: monospace;
-            font-size: 1.1rem;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 5px 10px;
-            border-radius: 5px;
+            font-size: 0.9rem;
+            background: rgba(0, 0, 0, 0.15);
+            padding: 4px 8px;
+            border-radius: 4px;
             display: inline-block;
-            margin-top: 5px;
+            color: white;
+            cursor: pointer;
+        }
+        
+        .ip-label {
+            margin-right: 8px;
+            opacity: 0.8;
+        }
+        
+        .md5-label {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .md5-value {
+            font-family: monospace;
+            font-size: 0.75rem;
+            word-break: break-all;
+            color: #2980b9;
+            text-align: right;
         }
     </style>
 </head>
 <body>
     <div class="card">
         <div class="card-header">
-            <h2 class="mb-0">OTA在线升级系统</h2>
-            <div class="text-muted">IP Address:</div>
-            <div class="ip-address" id="deviceIP">Connecting...</div>
+            <h2 class="header-title">OTA在线升级系统</h2>
+            <div class="ip-container">
+                <span class="ip-label">设备IP:</span>
+                <span class="ip-address" id="deviceIP">连接中...</span>
+            </div>
         </div>
         
         <div class="card-body">
             <div class="instructions">
-                <strong>⚠️ 警告:</strong> 更新期间不要断开电源！
+                <strong>⚠️ 警告:</strong> 更新过程中请勿断开设备电源或网络连接！
             </div>
             
             <form id="uploadForm" class="mb-4">
                 <div class="mb-3">
-                    <label for="firmwareFile" class="form-label">选择固件文件（.bin）</label>
+                    <label for="firmwareFile" class="form-label">选择固件文件（.bin格式）</label>
                     <input class="form-control" type="file" id="firmwareFile" name="update" accept=".bin" required>
                 </div>
                 <button type="submit" class="btn btn-primary" id="updateBtn">
@@ -230,25 +275,25 @@ R"=====(
             </div>
             
             <div class="status-card">
-                <h5 class="mb-3">系统状态</h5>
+                <div class="status-header">
+                    <h5 class="mb-0">系统状态</h5>
+                    <div class="md5-label">固件MD5: <span id="firmwareMD5" class="md5-value">N/A</span></div>
+                </div>
+                
                 <div class="status-item">
                     <span>更新进度：</span>
                     <span id="uploadPercent">0%</span>
                 </div>
                 <div class="status-item">
-                    <span>刷写进度：</span>
-                    <span id="flashPercent">0%</span>
-                </div>
-                <div class="status-item">
-                    <span>系统状态</span>
-                    <span id="statusText">Ready</span>
+                    <span>系统状态：</span>
+                    <span id="statusText">就绪</span>
                 </div>
             </div>
             
             <div class="device-info">
                 <div class="info-box">
                     <div class="info-value" id="fwVersion">N/A</div>
-                    <div class="info-label">版本</div>
+                    <div class="info-label">固件版本</div>
                 </div>
                 <div class="info-box">
                     <div class="info-value" id="flashSize">N/A</div>
@@ -256,228 +301,204 @@ R"=====(
                 </div>
                 <div class="info-box">
                     <div class="info-sn" id="SNID">N/A</div>
-                    <div class="info-label">SN</div>
+                    <div class="info-label">序列号</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        // 获取设备信息
-        async function fetchDeviceInfo() {
-            try {
-                const response = await fetch('/info');
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                
-                const data = await response.json();
-                
-                document.getElementById('fwVersion').textContent = data.version || 'N/A';
-                document.getElementById('flashSize').textContent = 
-                    data.freeFlash ? `${data.freeFlash} KB` : 'N/A';
-                document.getElementById('SNID').textContent = data.SNID || 'N/A';
-                
-                // 显示设备IP地址
-                const ipAddress = data.ipAddress;
-                const ipElement = document.getElementById('deviceIP');
-                if (ipAddress) {
-                    ipElement.textContent = ipAddress;
-                    ipElement.style.color = '#2ecc71'; // 绿色表示成功获取
-                    
-                    // 添加复制功能
-                    ipElement.title = "Click to copy IP address";
-                    ipElement.style.cursor = 'pointer';
-                    ipElement.addEventListener('click', function() {
-                        navigator.clipboard.writeText(ipAddress);
-                        const originalText = ipElement.textContent;
-                        ipElement.textContent = 'Copied!';
-                        setTimeout(() => {
-                            ipElement.textContent = originalText;
-                        }, 2000);
-                    });
-                } else {
-                    ipElement.textContent = 'Not available';
-                    ipElement.style.color = '#e74c3c'; // 红色表示错误
-                }
-                
-            } catch (error) {
-                console.error('Failed to fetch device info:', error);
-                document.getElementById('statusText').textContent = 'Info Error';
-                document.getElementById('statusText').style.color = '#e74c3c';
-                
-                // 尝试直接获取当前访问的IP
-                const currentHost = window.location.hostname;
-                if (currentHost && currentHost !== 'esp32.local') {
-                    document.getElementById('deviceIP').textContent = currentHost;
-                } else {
-                    document.getElementById('deviceIP').textContent = 'Unable to get IP';
-                    document.getElementById('deviceIP').style.color = '#e74c3c';
-                }
+<script>
+    // 获取设备信息
+    async function fetchDeviceInfo() {
+        try {
+            const response = await fetch('/info');
+            if (!response.ok) {
+                throw new Error('无法连接到设备');
             }
+            
+            const data = await response.json();
+            
+            // 更新设备信息
+            document.getElementById('fwVersion').textContent = data.version || 'N/A';
+            document.getElementById('flashSize').textContent = 
+                data.freeFlash ? `${data.freeFlash} KB` : 'N/A';
+            document.getElementById('SNID').textContent = data.SNID || 'N/A';
+            document.getElementById('firmwareMD5').textContent = data.firmwareMD5 || 'N/A';
+            
+            // 显示设备IP地址
+            const ipAddress = data.ipAddress;
+            const ipElement = document.getElementById('deviceIP');
+            if (ipAddress) {
+                ipElement.textContent = ipAddress;
+                
+                // 复制功能
+                ipElement.title = "点击复制IP地址";
+                ipElement.addEventListener('click', function() {
+                    navigator.clipboard.writeText(ipAddress);
+                    const originalText = ipElement.textContent;
+                    ipElement.textContent = '已复制!';
+                    setTimeout(() => {
+                        ipElement.textContent = originalText;
+                    }, 2000);
+                });
+            } else {
+                ipElement.textContent = '未获取到IP';
+            }
+            
+        } catch (error) {
+            console.error('获取设备信息失败:', error);
+            document.getElementById('statusText').textContent = '连接错误';
+            document.getElementById('statusText').style.color = '#e74c3c';
+            
+            // 尝试直接获取当前访问的IP
+            const currentHost = window.location.hostname;
+            if (currentHost && currentHost !== 'esp32.local') {
+                document.getElementById('deviceIP').textContent = currentHost;
+            } else {
+                document.getElementById('deviceIP').textContent = '无法获取IP';
+            }
+            
+            // 设置重试机制
+            setTimeout(fetchDeviceInfo, 5000);
+        }
+    }
+    
+    // 更新进度显示
+    function updateProgress(uploadPercent) {
+        uploadPercent = Math.max(0, Math.min(100, uploadPercent));
+        document.getElementById('uploadPercent').textContent = `${uploadPercent}%`;
+        const progressBar = document.getElementById('progressBar');
+        progressBar.style.width = `${uploadPercent}%`;
+        document.getElementById('progressText').textContent = `${uploadPercent}%`;
+        
+        const statusText = document.getElementById('statusText');
+        if (uploadPercent < 100) {
+            statusText.textContent = '上传中...';
+            statusText.style.color = '';
+            progressBar.style.background = 'linear-gradient(90deg, #3498db, #2ecc71)';
+        } else {
+            statusText.textContent = '正在写入设备...';
+            statusText.style.color = '#f39c12';
+            progressBar.style.background = 'linear-gradient(90deg, #f39c12, #e67e22)';
+            progressBar.classList.add('flashing');
+        }
+    }
+    
+    // 表单提交处理
+    document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const btn = document.getElementById('updateBtn');
+        const btnText = document.getElementById('btnText');
+        const spinner = document.getElementById('btnSpinner');
+        const fileInput = document.getElementById('firmwareFile');
+        const statusText = document.getElementById('statusText');
+        const progressBar = document.getElementById('progressBar');
+        
+        // 重置进度
+        progressBar.classList.remove('flashing');
+        updateProgress(0);
+        
+        // 检查文件是否已选择
+        if (!fileInput.files || fileInput.files.length === 0) {
+            statusText.textContent = '未选择文件';
+            statusText.style.color = '#e74c3c';
+            return;
         }
         
-        // 获取刷写进度
-        async function fetchFlashProgress() {
-            try {
-                const response = await fetch('/progress');
-                if (!response.ok) return 0;
-                
-                const progress = await response.text();
-                return parseInt(progress) || 0;
-            } catch (error) {
-                return 0;
-            }
+        // 检查文件扩展名
+        const fileName = fileInput.files[0].name.toLowerCase();
+        if (!fileName.endsWith('.bin')) {
+            statusText.textContent = '仅支持.bin文件';
+            statusText.style.color = '#e74c3c';
+            return;
         }
         
-        // 更新进度显示
-        function updateProgress(uploadPercent, flashPercent) {
-            // 限制百分比在0-100范围内
-            uploadPercent = Math.max(0, Math.min(100, uploadPercent));
-            flashPercent = Math.max(0, Math.min(100, flashPercent));
-            
-            // 更新上传进度
-            const uploadPercentElement = document.getElementById('uploadPercent');
-            uploadPercentElement.textContent = `${uploadPercent}%`;
-            
-            // 更新刷写进度
-            const flashPercentElement = document.getElementById('flashPercent');
-            flashPercentElement.textContent = `${flashPercent}%`;
-            
-            // 计算总进度 (上传40% + 刷写60%)
-            const totalProgress = Math.floor((uploadPercent * 0.4) + (flashPercent * 0.6));
-            
-            // 更新进度条
-            const progressBar = document.getElementById('progressBar');
-            progressBar.style.width = `${totalProgress}%`;
-            
-            // 更新进度文本（固定在容器中间）
-            document.getElementById('progressText').textContent = `${totalProgress}%`;
-            
-            // 更新状态文本
-            const statusText = document.getElementById('statusText');
-            
-            if (uploadPercent < 100) {
-                statusText.textContent = 'Uploading...';
-                progressBar.style.backgroundColor = '#3498db';
-            } else if (flashPercent < 100) {
-                statusText.textContent = 'Flashing...';
-                progressBar.style.backgroundColor = '#f39c12';
-                progressBar.classList.add('flashing');
-            } else if (flashPercent === 100) {
-                statusText.textContent = 'Update Complete!';
-                progressBar.style.backgroundColor = '#2ecc71';
-                progressBar.classList.remove('flashing');
-            }
-        }
+        // 获取文件大小
+        const file = fileInput.files[0];
+        const fileSize = file.size;
         
-        // 处理表单提交
-        document.getElementById('uploadForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const btn = document.getElementById('updateBtn');
-            const btnText = document.getElementById('btnText');
-            const spinner = document.getElementById('btnSpinner');
-            const fileInput = document.getElementById('firmwareFile');
-            
-            // 检查文件是否已选择
-            if (!fileInput.files || fileInput.files.length === 0) {
-                document.getElementById('statusText').textContent = 'No file selected';
-                document.getElementById('statusText').style.color = '#e74c3c';
-                return;
-            }
-            
-            // 检查文件扩展名
-            const fileName = fileInput.files[0].name.toLowerCase();
-            if (!fileName.endsWith('.bin')) {
-                document.getElementById('statusText').textContent = 'Invalid file type (.bin only)';
-                document.getElementById('statusText').style.color = '#e74c3c';
-                return;
-            }
-            
-            // 禁用按钮并显示加载状态
-            btn.disabled = true;
-            btnText.textContent = 'Updating...';
-            spinner.classList.remove('d-none');
-            
-            const formData = new FormData(this);
-            const xhr = new XMLHttpRequest();
-            
-            // 上传进度处理
-            xhr.upload.addEventListener('progress', function(evt) {
-                if (evt.lengthComputable) {
-                    const percent = Math.round((evt.loaded / evt.total) * 100);
-                    updateProgress(percent, 0);
-                }
-            });
-            
-            // 定期获取刷写进度
-            let flashProgressInterval;
-            
-            xhr.addEventListener('loadstart', function() {
-                flashProgressInterval = setInterval(async () => {
-                    const flashPercent = await fetchFlashProgress();
-                    const uploadPercent = parseInt(document.getElementById('uploadPercent').textContent) || 0;
-                    
-                    // 防止上传完成后的进度回退
-                    if (uploadPercent === 100) {
-                        updateProgress(100, flashPercent);
-                    }
-                }, 500);
-            });
-            
-            // 请求完成处理
-            xhr.addEventListener('load', function() {
-                clearInterval(flashProgressInterval);
-                
-                if (xhr.status === 200) {
-                    // 确保进度显示100%
-                    updateProgress(100, 100);
-                    document.getElementById('statusText').textContent = 'Rebooting...';
-                    
-                    // 显示重启倒计时
-                    let countdown = 3;
-                    const countdownInterval = setInterval(() => {
-                        btnText.textContent = `Rebooting in ${countdown}s`;
-                        if (countdown <= 0) {
-                            clearInterval(countdownInterval);
-                            btnText.textContent = 'Rebooting Now';
-                            
-                            // 锁定进度显示为100%
-                            document.getElementById('progressText').textContent = "100%";
-                            document.getElementById('progressBar').style.width = "100%";
-                            document.getElementById('uploadPercent').textContent = "100%";
-                            document.getElementById('flashPercent').textContent = "100%";
-                        }
-                        countdown--;
-                    }, 1000);
-                } else {
-                    btn.disabled = false;
-                    btnText.textContent = 'Retry Update';
-                    spinner.classList.add('d-none');
-                    document.getElementById('statusText').textContent = 'Update Failed';
-                    document.getElementById('statusText').style.color = '#e74c3c';
-                    document.getElementById('progressBar').style.backgroundColor = '#e74c3c';
-                }
-            });
-            
-            // 错误处理
-            xhr.addEventListener('error', function() {
-                clearInterval(flashProgressInterval);
-                btn.disabled = false;
-                btnText.textContent = 'Retry Update';
-                spinner.classList.add('d-none');
-                document.getElementById('statusText').textContent = 'Connection Error';
-                document.getElementById('statusText').style.color = '#e74c3c';
-            });
-            
-            xhr.open('POST', '/update', true);
-            xhr.send(formData);
+        // 创建XHR对象
+        const xhr = new XMLHttpRequest();
+        const formData = new FormData();
+        formData.append('update', file);
+        
+        // 创建包含文件大小的URL
+        const url = `/update?fileSize=${fileSize}`;
+        
+        // 禁用按钮并显示加载状态
+        btn.disabled = true;
+        btnText.textContent = '更新中...';
+        spinner.classList.remove('d-none');
+        statusText.textContent = '开始上传';
+        statusText.style.color = '';
+        
+        // 上传进度处理
+        xhr.upload.addEventListener('progress', function(evt) {
+            // 使用fileSize而不是evt.total，因为evt.total可能包含额外数据
+            const percent = Math.round((evt.loaded / fileSize) * 100);
+            updateProgress(percent);
         });
         
-        // 初始化页面时获取设备信息
-        document.addEventListener('DOMContentLoaded', fetchDeviceInfo);
-    </script>
+        // 请求完成处理
+        xhr.addEventListener('load', async function() {
+            if (xhr.status === 200) {
+                updateProgress(100);
+
+                statusText.style.color = '#2ecc71';
+                progressBar.style.background = '#2ecc71';
+                progressBar.classList.remove('flashing');
+                
+                let countdown = 3;
+                const countdownInterval = setInterval(() => {
+                    btnText.textContent = `重启中...(${countdown})`;
+                    if (countdown <= 0) {
+                        clearInterval(countdownInterval);
+                        btnText.textContent = '请手动刷新后操作';
+                        setTimeout(fetchDeviceInfo, 3000);
+                    }
+                    countdown--;
+                }, 1000);
+            } else {
+                btn.disabled = false;
+                btnText.textContent = '重试更新';
+                spinner.classList.add('d-none');
+                statusText.textContent = '更新失败';
+                statusText.style.color = '#e74c3c';
+                progressBar.style.background = '#e74c3c';
+            }
+        });
+        
+        // 错误处理
+        xhr.addEventListener('error', function() {
+            btn.disabled = false;
+            btnText.textContent = '重试更新';
+            spinner.classList.add('d-none');
+            statusText.textContent = '连接错误';
+            statusText.style.color = '#e74c3c';
+        });
+        
+        // 请求超时处理
+        xhr.timeout = 300000; // 5分钟超时
+        xhr.ontimeout = function() {
+            btn.disabled = false;
+            btnText.textContent = '重试更新';
+            spinner.classList.add('d-none');
+            statusText.textContent = '请求超时';
+            statusText.style.color = '#e74c3c';
+        };
+        
+        // 发送请求
+        xhr.open('POST', url, true);
+        xhr.send(formData);
+    });
+    
+    // 初始化页面时获取设备信息
+    document.addEventListener('DOMContentLoaded', fetchDeviceInfo);
+    
+    // 每5秒刷新一次设备信息
+    setInterval(fetchDeviceInfo, 5000);
+</script>
 </body>
 </html>
 )=====";

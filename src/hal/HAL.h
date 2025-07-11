@@ -58,8 +58,28 @@ namespace HAL
         bool BuzzerMute; // Buzzer mute status
     } Buzzer_status_t;
 
+    typedef struct 
+    {
+        bool OTARun; // OTA Run Status
+    } OTA_status_t;
+    
 }
 
+namespace AppState {
+    constexpr int Main = 1;
+    constexpr int VBUS_Curve = 2;
+    constexpr int Menu = 3;
+    constexpr int Log = 4;
+    constexpr int PowerDelivery = 5;
+    constexpr int QuickCharge = 6;
+    constexpr int SystemInfo = 7;
+    constexpr int Setting = 8;
+    constexpr int WiFi_Connect = 9;
+    constexpr int WiFi_Connect_Fail = 10;
+    constexpr int OTA_Update = 11;
+    constexpr int OTA_Finish = 12;
+    constexpr int OTA_Fail = 13;
+}
 
 #endif // !__cplusplus
 

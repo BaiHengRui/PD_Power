@@ -3,6 +3,7 @@
 #include "Config.h"
 #include "html/ota.h"
 
+HAL::OTA_status_t OTA_Status;
 const char* host = "esp32";
 WebServer server(80);
 WiFiManager wm;
@@ -28,17 +29,65 @@ void HAL::Sys_Init() {
     Sketch_Size = ESP.getSketchSize() / 1024; // Program size in KB
     Serial.println("System Init Complete!");
 
-    HAL::WebUpdate();
-    OTA_Update_Status =1;
+    Now_App = 11;
 }
 
 /* System Loop */
 void HAL::Sys_Run() {
     HAL::INA22x_Run();
     HAL::GPIO_Run();
-    if(OTA_Update_Status == 1){server.handleClient();}
-    HAL::UI_VBUS_Curve();
+    if(OTA_Status.OTARun == 1){server.handleClient();} // 异步进入OTA
     digitalWrite(LCD_BL_PIN,50);
+    switch (Now_App)
+    {
+    case AppState::Main:
+        HAL::UI_Main();
+        break;
+    case AppState::VBUS_Curve:
+        HAL::UI_VBUS_Curve();
+        break;
+    case AppState::Menu:
+        HAL::UI_Menu();
+        break;
+    case AppState::Log:
+        HAL::UI_LOG();
+        break;
+    case AppState::PowerDelivery:
+        HAL::UI_PowerDelivery();
+        break;
+    case AppState::QuickCharge:
+        HAL::UI_QuickCharge();
+        break;
+    case AppState::SystemInfo:
+        HAL::UI_SystemInfo();
+        break;
+    case AppState::Setting:
+        HAL::UI_Setting();
+        break;
+    case AppState::WiFi_Connect:
+        HAL::UI_WiFi_Connect();
+        break;
+    case AppState::WiFi_Connect_Fail:
+        HAL::UI_WiFi_Connect_Fail();
+        break;  
+    case AppState::OTA_Update:
+        while(OTA_Status.OTARun ==0)
+        {
+            HAL::WebUpdate();
+            HAL::UI_OTA_Update();
+            OTA_Status.OTARun =1;
+        }
+        break;   
+    case AppState::OTA_Finish:
+        HAL::UI_OTA_Finish();
+        break;
+    case AppState::OTA_Fail:
+        HAL::UI_OTA_Fail();
+        break;
+    default:
+        HAL::UI_Main();
+        break;
+    }
 }
 
 /* Save WiFi to EEPROM */
@@ -80,12 +129,15 @@ void HAL::WiFiConnect(){
     // Serial.println("Web OTA Mode");
     HAL::ReadWiFiConfig();
     WiFi.begin(wificonf.ssid,wificonf.psw);
+    HAL::UI_WiFi_Connect();
     //显示
     Serial.println("WiFi Mode:" + String(WiFi.getMode()));
     while (WiFi.status() != WL_CONNECTED)
     {
         if (millis() - connect_time_out >= 15*1000)
         {
+            HAL::LCD_Refresh_Screen();
+            HAL::UI_WiFi_Connect_Fail();
             std::vector<const char *> menu = {"wifi","restart"};
             wm.setMenu(menu);
 
@@ -122,6 +174,7 @@ void HAL::WiFiConnect(){
 /* OTA */
 void HAL::WebUpdate() {
     HAL::WiFiConnect();
+
     if (!MDNS.begin(host)) {
         Serial.println("mDNS服务初始化失败!");
         while (1) {
@@ -141,11 +194,11 @@ void HAL::WebUpdate() {
         String json = "{";
         json += "\"version\":\"" + String(FirmwareVer) + "\",";
         json += "\"freeFlash\":" + String(ESP.getFreeSketchSpace() / 1024) + ",";
-        json += "\"SNID\":\"" + String(SNID,HEX) + "\",";
-        json += "\"ipAddress\":\"" + ipAddress + "\"";
-        // json += "\"SketchMD5\":\"" + String(SketchMD5) + "\"";
+        json += "\"SNID\":\"" + String(SNID, HEX) + "\",";
+        json += "\"ipAddress\":\"" + ipAddress + "\",";
+        json += "\"firmwareMD5\":\"" + SketchMD5 + "\"";
         json += "}";
-        
+
         server.send(200, "application/json", json);
     });
 
@@ -157,48 +210,69 @@ void HAL::WebUpdate() {
     // 网页服务
     server.on("/", HTTP_GET, []() {
         server.sendHeader("Connection", "close");
-        server.send(200, "text/html", serverIndex); // serverIndex 是美化后的前端HTML
+        server.send(200, "text/html", serverIndex); // serverIndex 前端HTML
     });
 
     // 上传固件
     server.on("/update", HTTP_POST, []() {
         server.sendHeader("Connection", "close");
         server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-        delay(1000); // 给前端一点时间显示完成状态
+        delay(200); // 给前端一点时间显示完成状态
         ESP.restart();
     }, []() {
         HTTPUpload& upload = server.upload();
-        static uint32_t totalSize = 0;       // 总大小
-        static uint32_t writtenSize = 0;     // 已写入大小
+
+        static uint32_t totalUpdateSize = 0; // 静态变量记录已上传的大小
+        static int totalFileSize = 0; // 静态变量记录固件总大小
+        static uint32_t UpdateBlockSize = 1436; // 分块大小
 
         if (upload.status == UPLOAD_FILE_START) {
-            Serial.printf("Update Start: %s\n", upload.filename.c_str());
-            totalSize = upload.totalSize;
-            writtenSize = 0;
-            OTA_Progress = 0;
 
-            if (Update.begin(UPDATE_SIZE_UNKNOWN)) {
-                Serial.println("Update begin successfully");
+            String fileSizeParam = server.arg("fileSize");
+            if (fileSizeParam != "") {
+                totalFileSize = fileSizeParam.toInt();
             } else {
+                // 备用方案
+                totalFileSize = server.header("Content-Length").toInt();
+            }
+            
+            Serial.printf("文件名称: %s\n", upload.filename.c_str());
+            Serial.printf("固件大小(Byte):%u\n", totalFileSize);
+            Serial.print("开始写入...");
+            Serial.println("Received headers:");
+
+            OTA_Progress = 0;
+            HAL::UI_OTA_Update(); // 强制重新更新一下
+
+            if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
                 Update.printError(Serial);
             }
-        } else if (upload.status == UPLOAD_FILE_WRITE) {
-            // 写入固件
+
+        }
+        else if (upload.status == UPLOAD_FILE_WRITE) {
+            // 写入固件数据
             if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
                 Update.printError(Serial);
             }
-            writtenSize += upload.currentSize;
 
-            // 计算进度（百分比）
-            if (totalSize > 0) {
-                OTA_Progress = (writtenSize * 100) / totalSize;
+            // 计算进度百分比
+            if (upload.totalSize > 0) {
+                totalUpdateSize += upload.currentSize;
+                OTA_Progress = (totalUpdateSize * 100) / totalFileSize;
+                // OTA_Progress = 100 - ((upload.currentSize *100) / upload.totalSize); // 计算当前上传进度
             }
-            Serial.printf("Progress: %d%%\n", OTA_Progress);
-        } else if (upload.status == UPLOAD_FILE_END) {
-            if (Update.end(true)) { // true表示更新完成后设置重启标志
+
+            HAL::UI_OTA_Update();
+        }
+        else if (upload.status == UPLOAD_FILE_END) {
+            if (Update.end(true)) {
                 OTA_Progress = 100;
-                Serial.printf("Update Success: %u bytes\n", writtenSize);
+                HAL::UI_OTA_Finish();
+                Serial.printf("更新完成大小(Byte): %u\n", upload.totalSize);
+                Serial.print("服务关闭,即将重启");
+                delay(5000); // 5s重启
             } else {
+                HAL::UI_OTA_Fail();
                 Update.printError(Serial);
             }
         }

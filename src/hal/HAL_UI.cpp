@@ -196,15 +196,47 @@ void HAL::UI_VBUS_Curve(){
 }
 
 void HAL::UI_PowerDelivery(){
-    /**/
+    spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
+    spr.fillScreen(TFT_BLACK);
+    spr.setTextDatum(CC_DATUM);
+    spr.setColorDepth(8);
+    spr.setTextColor(TFT_WHITE);
+    spr.loadFont(Font1_12);
+    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
+    spr.print("Power Delivery PAGE !");
+    spr.unloadFont();
+    spr.pushSprite(0, 0);
+    spr.deleteSprite();
 }
 
 void HAL::UI_QuickCharge(){
-    /**/
+    spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
+    spr.fillScreen(TFT_BLACK);
+    spr.setTextDatum(CC_DATUM);
+    spr.setColorDepth(8);
+    spr.setTextColor(TFT_WHITE);
+    spr.loadFont(Font1_12);
+    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
+    spr.print("Quick Charge PAGE!");
+    spr.unloadFont();
+    spr.pushSprite(0, 0);
+    spr.deleteSprite();
 }
 
 void HAL::UI_LOG(){
-    /**/
+    spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
+    spr.fillScreen(TFT_BLACK);
+    spr.setTextDatum(CC_DATUM);
+    spr.setColorDepth(8);
+    spr.setTextColor(TFT_WHITE);
+    spr.loadFont(Font1_12);
+
+    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
+    spr.print("LOG PAGE!");
+
+    spr.unloadFont();
+    spr.pushSprite(0, 0);
+    spr.deleteSprite();
 }
 
 void HAL::UI_Menu(){
@@ -213,8 +245,9 @@ void HAL::UI_Menu(){
     spr.setTextDatum(CC_DATUM);
     spr.setColorDepth(8);
     spr.setTextColor(TFT_WHITE);
+    spr.loadFont(Font1_12);
 
-    /*code  */
+    spr.print("Menu PAGE!");
 
     spr.unloadFont();
     spr.pushSprite(0, 0);
@@ -222,7 +255,19 @@ void HAL::UI_Menu(){
 }
 
 void HAL::UI_Setting(){
-    /**/
+    spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
+    spr.fillScreen(TFT_BLACK);
+    spr.setTextDatum(CC_DATUM);
+    spr.setColorDepth(8);
+    spr.setTextColor(TFT_WHITE);
+    spr.loadFont(Font1_12);
+
+    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
+    spr.print("Setting PAGE!");
+
+    spr.unloadFont();
+    spr.pushSprite(0, 0);
+    spr.deleteSprite();
 }
 
 void HAL::UI_SystemInfo(){
@@ -230,21 +275,81 @@ void HAL::UI_SystemInfo(){
 }
 
 void HAL::UI_OTA_Update(){
-    /**/
+    spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
+    spr.fillScreen(TFT_BLACK);
+    spr.setTextDatum(CC_DATUM);
+    spr.setColorDepth(8);
+    spr.setTextColor(TFT_WHITE);
+    spr.loadFont(Font1_12);
+    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
+    spr.println("Progress: " + String(OTA_Progress) + "%");
+    spr.println(millis());
+    spr.unloadFont();
+    spr.pushSprite(0, 0);
+    spr.deleteSprite();
 }
 
 void HAL::UI_OTA_Finish(){
-    /**/
+    spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
+    spr.fillScreen(TFT_BLACK);
+    spr.setTextDatum(CC_DATUM);
+    spr.setColorDepth(8);
+    spr.setTextColor(TFT_WHITE);
+    spr.loadFont(Font1_12);
+
+    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
+    spr.print("Progress: " + String(OTA_Progress) + "%");
+    spr.println("OK!");
+
+    spr.unloadFont();
+    spr.pushSprite(0, 0);
+    spr.deleteSprite();
 }
 
 void HAL::UI_OTA_Fail(){
-    /**/
+    spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
+    spr.fillScreen(TFT_BLACK);
+    spr.setTextDatum(CC_DATUM);
+    spr.setColorDepth(8);
+    spr.setTextColor(TFT_WHITE);
+    spr.loadFont(Font1_12);
+    
+    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
+    spr.print("Progress: " + String(OTA_Progress) + "%");
+    spr.println("FAIL!");
+
+    spr.unloadFont();
+    spr.pushSprite(0, 0);
+    spr.deleteSprite();
 }
 
 void HAL::UI_WiFi_Connect(){
-    /**/
+    spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
+    spr.fillScreen(TFT_BLACK);
+    spr.setTextDatum(CC_DATUM);
+    spr.setColorDepth(8);
+    spr.setTextColor(TFT_WHITE);
+    spr.loadFont(Font1_12);
+    
+    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
+    spr.println("WiFi Connect!");
+
+    spr.unloadFont();
+    spr.pushSprite(0, 0);
+    spr.deleteSprite();
 }
 
 void HAL::UI_WiFi_Connect_Fail(){
-    /**/
+    spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
+    spr.fillScreen(TFT_BLACK);
+    spr.setTextDatum(CC_DATUM);
+    spr.setColorDepth(8);
+    spr.setTextColor(TFT_WHITE);
+    spr.loadFont(Font1_12);
+    
+    spr.println("WiFi Connect Fail !");
+
+    spr.unloadFont();
+    spr.pushSprite(0, 0);
+    spr.deleteSprite();
 }
