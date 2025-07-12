@@ -496,8 +496,8 @@ R"=====(
     // 初始化页面时获取设备信息
     document.addEventListener('DOMContentLoaded', fetchDeviceInfo);
     
-    // 每5秒刷新一次设备信息
-    setInterval(fetchDeviceInfo, 5000);
+    // 每10秒刷新一次设备信息
+    setInterval(fetchDeviceInfo, 10000);
 </script>
 </body>
 </html>

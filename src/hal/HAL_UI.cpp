@@ -1,6 +1,12 @@
 #include "HAL.h"
 #include "Config.h"
 #include "Fonts/Font1_12.h"
+#include "Fonts/Font1_18.h"
+#include "Fonts/Font1_20.h"
+#include "ui/cloud_download.h"
+#include "ui/update_error.h"
+#include "ui/update_success.h"
+#include "ui/wlan_error.h"
 
 TFT_eSPI tft = TFT_eSPI(240,240);
 TFT_eSprite spr = TFT_eSprite(&tft);
@@ -277,13 +283,34 @@ void HAL::UI_SystemInfo(){
 void HAL::UI_OTA_Update(){
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
-    spr.setTextDatum(CC_DATUM);
+    spr.setTextDatum(MC_DATUM);
     spr.setColorDepth(8);
+
     spr.setTextColor(TFT_WHITE);
     spr.loadFont(Font1_12);
-    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
-    spr.println("Progress: " + String(OTA_Progress) + "%");
-    spr.println(millis());
+    spr.setCursor(7,25);
+    spr.print("IP: " + String(WiFi.localIP()));
+    spr.setCursor(110,25);
+    spr.print("HTTP://ESP32.LOCAL");
+    spr.unloadFont();
+    spr.loadFont(Font1_18);
+    spr.setCursor(5,1);
+    if (OTA_Progress == 0)
+    {
+        spr.print("等待更新");
+    }else if (OTA_Progress > 0 && OTA_Progress < 100)
+    {
+        spr.print("更新中");
+    }
+
+    spr.setCursor(65,110);
+    spr.print("OTA-Update");
+    spr.pushImage(96,60,48,48,cloud_download);
+
+    spr.fillRoundRect(18,140,200,6,2,0xffff);
+    spr.fillRoundRect(18,140,(OTA_Progress*2),6,2,0x1C9F);
+    spr.setCursor(110,150);
+    spr.print(OTA_Progress + String("%"));
     spr.unloadFont();
     spr.pushSprite(0, 0);
     spr.deleteSprite();
@@ -292,15 +319,23 @@ void HAL::UI_OTA_Update(){
 void HAL::UI_OTA_Finish(){
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
-    spr.setTextDatum(CC_DATUM);
+    spr.setTextDatum(MC_DATUM);
     spr.setColorDepth(8);
+
     spr.setTextColor(TFT_WHITE);
-    spr.loadFont(Font1_12);
+    spr.loadFont(Font1_18);
+    spr.setCursor(5,1);
+    spr.print("Finish");
 
-    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
-    spr.print("Progress: " + String(OTA_Progress) + "%");
-    spr.println("OK!");
-
+    spr.setCursor(65,110);
+    spr.print("OTA-Update");
+    spr.pushImage(96,60,48,48,update_success);
+    
+    spr.fillRoundRect(18,140,200,6,2,0xffff);
+    spr.fillRoundRect(18,140,(OTA_Progress*2),6,2,0x1C9F);
+    spr.setCursor(80,150);
+    spr.setTextColor(TFT_GREEN);
+    spr.print("更新完成");
     spr.unloadFont();
     spr.pushSprite(0, 0);
     spr.deleteSprite();
@@ -309,14 +344,23 @@ void HAL::UI_OTA_Finish(){
 void HAL::UI_OTA_Fail(){
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
-    spr.setTextDatum(CC_DATUM);
+    spr.setTextDatum(MC_DATUM);
     spr.setColorDepth(8);
+
     spr.setTextColor(TFT_WHITE);
-    spr.loadFont(Font1_12);
+    spr.loadFont(Font1_18);
+    spr.setCursor(5,1);
+    spr.print("Error");
+
+    spr.setCursor(65,110);
+    spr.print("OTA-Update");
+    spr.pushImage(96,60,48,48,update_success);
     
-    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
-    spr.print("Progress: " + String(OTA_Progress) + "%");
-    spr.println("FAIL!");
+    spr.fillRoundRect(18,140,200,6,2,0xffff);
+    spr.fillRoundRect(18,140,(OTA_Progress*2),6,2,0x1C9F);
+    spr.setCursor(80,150);
+    spr.setTextColor(TFT_RED);
+    spr.print("更新失败");
 
     spr.unloadFont();
     spr.pushSprite(0, 0);
@@ -328,11 +372,14 @@ void HAL::UI_WiFi_Connect(){
     spr.fillScreen(TFT_BLACK);
     spr.setTextDatum(CC_DATUM);
     spr.setColorDepth(8);
+
     spr.setTextColor(TFT_WHITE);
-    spr.loadFont(Font1_12);
-    
-    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
-    spr.println("WiFi Connect!");
+    spr.loadFont(Font1_20);
+    spr.setCursor(72,110);
+    spr.print("连接WiFi...");
+    spr.pushImage(96,60,48,48,wlan_error);
+    spr.setCursor(10,180);
+    spr.print("Connecting...Wait 15s");
 
     spr.unloadFont();
     spr.pushSprite(0, 0);
@@ -344,10 +391,14 @@ void HAL::UI_WiFi_Connect_Fail(){
     spr.fillScreen(TFT_BLACK);
     spr.setTextDatum(CC_DATUM);
     spr.setColorDepth(8);
+
     spr.setTextColor(TFT_WHITE);
-    spr.loadFont(Font1_12);
-    
-    spr.println("WiFi Connect Fail !");
+    spr.loadFont(Font1_20);
+    spr.setCursor(58,110);
+    spr.print("连接WiFi失败!");
+    spr.pushImage(96,60,48,48,wlan_error);
+    spr.setCursor(10,180);
+    spr.print("HostAP : ESP32AP");
 
     spr.unloadFont();
     spr.pushSprite(0, 0);

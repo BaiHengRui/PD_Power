@@ -224,18 +224,13 @@ void HAL::WebUpdate() {
 
         static uint32_t totalUpdateSize = 0; // 静态变量记录已上传的大小
         static int totalFileSize = 0; // 静态变量记录固件总大小
-        static uint32_t UpdateBlockSize = 1436; // 分块大小
 
         if (upload.status == UPLOAD_FILE_START) {
 
             String fileSizeParam = server.arg("fileSize");
             if (fileSizeParam != "") {
                 totalFileSize = fileSizeParam.toInt();
-            } else {
-                // 备用方案
-                totalFileSize = server.header("Content-Length").toInt();
             }
-            
             Serial.printf("文件名称: %s\n", upload.filename.c_str());
             Serial.printf("固件大小(Byte):%u\n", totalFileSize);
             Serial.print("开始写入...");
