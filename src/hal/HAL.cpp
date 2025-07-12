@@ -29,13 +29,14 @@ void HAL::Sys_Init() {
     Sketch_Size = ESP.getSketchSize() / 1024; // Program size in KB
     Serial.println("System Init Complete!");
 
-    Now_App = 11;
+    Now_App = 2;
 }
 
 /* System Loop */
 void HAL::Sys_Run() {
     HAL::INA22x_Run();
     HAL::GPIO_Run();
+    HAL::PD_Run();
     if(OTA_Status.OTARun == 1){server.handleClient();} // 异步进入OTA
     digitalWrite(LCD_BL_PIN,50);
     switch (Now_App)
@@ -202,11 +203,6 @@ void HAL::WebUpdate() {
         server.send(200, "application/json", json);
     });
 
-    // 添加进度查询端点
-    server.on("/progress", HTTP_GET, []() {
-        server.send(200, "text/plain", String(OTA_Progress));
-    });
-
     // 网页服务
     server.on("/", HTTP_GET, []() {
         server.sendHeader("Connection", "close");
@@ -231,10 +227,9 @@ void HAL::WebUpdate() {
             if (fileSizeParam != "") {
                 totalFileSize = fileSizeParam.toInt();
             }
-            Serial.printf("文件名称: %s\n", upload.filename.c_str());
+            Serial.printf("固件名称: %s\n", upload.filename.c_str());
             Serial.printf("固件大小(Byte):%u\n", totalFileSize);
             Serial.print("开始写入...");
-            Serial.println("Received headers:");
 
             OTA_Progress = 0;
             HAL::UI_OTA_Update(); // 强制重新更新一下
