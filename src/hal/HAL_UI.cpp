@@ -59,9 +59,37 @@ void HAL::UI_Main(){
     spr.setTextDatum(CC_DATUM);
     spr.setColorDepth(8);
     spr.setTextColor(TFT_WHITE);
+    spr.loadFont(Font1_20);
+    spr.setCursor(2,10);
+    spr.setTextColor(TFT_GREEN);
+    spr.print(LoadVoltage,4);
+    spr.print("Vbus");
+    spr.setCursor(2,35);
+    spr.setTextColor(TFT_CYAN);
+    spr.print(LoadCurrent,4);
+    spr.print("Ibus");
+    spr.setCursor(2,60);
+    spr.setTextColor(TFT_YELLOW);
+    spr.print(LoadPower,4);
+    spr.print("Power");
+
+    spr.unloadFont();
     spr.loadFont(Font1_12);
-    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
-    spr.print("HELLO, PD Power!");
+    spr.setCursor(2,120);
+    if (PD_Option == 0)
+    {
+        spr.print("FIX:" + String(PD_Voltage*0.05,2) + "V " + String(PD_Current*0.01,2) + "A");
+    }else if (PD_Option == 1)
+    {
+        spr.print("PPS:" + String(PD_Voltage*0.02,2) + "V " + String(PD_Current*0.05,2) + "A");
+    }
+    spr.setCursor(2,140);
+    spr.print("SRC:" + String(PD_Src_Cap_Count));
+    spr.print("-POS:" + String(PD_Position));
+
+    spr.setTextColor(TFT_WHITE);
+    spr.setCursor(180,10);
+    spr.print("FPS:" + String(currentFPS,2));
     spr.unloadFont();
     spr.pushSprite(0, 0);
     spr.deleteSprite();
@@ -195,7 +223,7 @@ void HAL::UI_VBUS_Curve(){
     spr.setTextColor(TFT_YELLOW);
     spr.setTextDatum(TR_DATUM); // 右对齐
     spr.drawString("A:" + String(LoadCurrent,4), 210, 2); 
-
+    
     spr.unloadFont();
     spr.pushSprite(0, 0);
     spr.deleteSprite();
@@ -292,6 +320,11 @@ void HAL::UI_OTA_Update(){
     spr.print("IP: " + String(WiFi.localIP()));
     spr.setCursor(110,25);
     spr.print("HTTP://ESP32.LOCAL");
+
+    spr.setTextColor(TFT_WHITE);
+    spr.setCursor(180,10);
+    spr.print("FPS:" + String(currentFPS,2));
+
     spr.unloadFont();
     spr.loadFont(Font1_18);
     spr.setCursor(5,1);

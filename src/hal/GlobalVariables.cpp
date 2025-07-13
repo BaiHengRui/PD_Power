@@ -42,3 +42,7 @@ int EEPROM_Rotation_addr = 2; // EEPROM address for LCD rotation
 int EEPROM_App_addr = 3; // EEPROM address for current app
 int EEPROM_WiFi_addr = 23; // EEPROM address for WiFi configuration
 
+unsigned long lastFPSTime = 0;
+unsigned int frameCount = 0;
+float currentFPS = 0;
+

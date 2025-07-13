@@ -5,6 +5,9 @@
 #include <esp32-hal-cpu.h>
 #include <esp32-hal-gpio.h>
 #include <esp32-hal-adc.h>
+#include <esp_task_wdt.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include <EEPROM.h>
 #include <Wire.h>
 #include <WiFi.h>

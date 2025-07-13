@@ -29,16 +29,15 @@ void HAL::Sys_Init() {
     Sketch_Size = ESP.getSketchSize() / 1024; // Program size in KB
     Serial.println("System Init Complete!");
 
-    Now_App = 2;
+    Now_App = 1;
 }
 
 /* System Loop */
 void HAL::Sys_Run() {
-    HAL::INA22x_Run();
-    HAL::GPIO_Run();
-    HAL::PD_Run();
-    if(OTA_Status.OTARun == 1){server.handleClient();} // 异步进入OTA
-    digitalWrite(LCD_BL_PIN,50);
+    //use free rots
+    // HAL::INA22x_Run();
+    // HAL::GPIO_Run();
+    // HAL::PD_Run();
     switch (Now_App)
     {
     case AppState::Main:
@@ -72,11 +71,11 @@ void HAL::Sys_Run() {
         HAL::UI_WiFi_Connect_Fail();
         break;  
     case AppState::OTA_Update:
-        while(OTA_Status.OTARun ==0)
+        if(OTA_Status.OTARun == 0)
         {
             HAL::WebUpdate();
             HAL::UI_OTA_Update();
-            OTA_Status.OTARun =1;
+            OTA_Status.OTARun = 1;
         }
         break;   
     case AppState::OTA_Finish:
@@ -135,7 +134,7 @@ void HAL::WiFiConnect(){
     Serial.println("WiFi Mode:" + String(WiFi.getMode()));
     while (WiFi.status() != WL_CONNECTED)
     {
-        if (millis() - connect_time_out >= 15*1000)
+        if (millis() - connect_time_out >= 15 *1000)
         {
             HAL::LCD_Refresh_Screen();
             HAL::UI_WiFi_Connect_Fail();
@@ -229,7 +228,7 @@ void HAL::WebUpdate() {
             }
             Serial.printf("固件名称: %s\n", upload.filename.c_str());
             Serial.printf("固件大小(Byte):%u\n", totalFileSize);
-            Serial.print("开始写入...");
+            Serial.println("开始写入...");
 
             OTA_Progress = 0;
             HAL::UI_OTA_Update(); // 强制重新更新一下
@@ -240,11 +239,11 @@ void HAL::WebUpdate() {
 
         }
         else if (upload.status == UPLOAD_FILE_WRITE) {
+            esp_task_wdt_reset();//喂看门狗，以防万一
             // 写入固件数据
             if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
                 Update.printError(Serial);
             }
-
             // 计算进度百分比
             if (upload.totalSize > 0) {
                 totalUpdateSize += upload.currentSize;
@@ -259,7 +258,7 @@ void HAL::WebUpdate() {
                 OTA_Progress = 100;
                 HAL::UI_OTA_Finish();
                 Serial.printf("更新完成大小(Byte): %u\n", upload.totalSize);
-                Serial.print("服务关闭,即将重启");
+                Serial.println("服务关闭,即将重启");
                 delay(5000); // 5s重启
             } else {
                 HAL::UI_OTA_Fail();
@@ -270,4 +269,12 @@ void HAL::WebUpdate() {
 
     server.begin();
     // OTA_Update_Status = 1; // 标记OTA更新状态为进行中
+}
+
+void HAL::WebUptadeRun(){
+    if (OTA_Status.OTARun == 1)
+    {
+        server.handleClient();
+    }
+    
 }

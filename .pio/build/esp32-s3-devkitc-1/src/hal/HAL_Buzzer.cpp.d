@@ -183,6 +183,7 @@
  C:/Users/bhr13/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-cpu.h \
  C:/Users/bhr13/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-gpio.h \
  C:/Users/bhr13/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-adc.h \
+ C:/Users/bhr13/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_system/include/esp_task_wdt.h \
  C:/Users/bhr13/.platformio/packages/framework-arduinoespressif32/libraries/EEPROM/src/EEPROM.h \
  C:/Users/bhr13/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src/Wire.h \
  C:/Users/bhr13/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal.h \

@@ -13,6 +13,7 @@ namespace HAL
     void Sys_Run();
     void WiFiConnect();
     void WebUpdate();
+    void WebUptadeRun();
     void SaveWiFiConfig();
     void ReadWiFiConfig();
     void DeleteWiFiConfig();
@@ -62,7 +63,7 @@ namespace HAL
     {
         bool OTARun; // OTA Run Status
     } OTA_status_t;
-    
+
 }
 
 namespace AppState {
