@@ -28,7 +28,7 @@ int ccbus_used = 0; // CC线状态 0/NULL 1/CC1 2/CC2
 
 uint64_t SNID = 0;
 int32_t NowTime = 0, LastTime = 0;
-int OTA_Progress = 0;
+int OTA_Progress = 0; 
 int Now_App = 1; // Current app index
 int All_Apps = 13; // Total number of apps
 int LastApp = 0; // Last app index

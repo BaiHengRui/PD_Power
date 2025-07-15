@@ -24,6 +24,7 @@ void HAL::Sys_Init() {
     HAL::PD_Init();
     HAL::Buzzer_Init();
     HAL::LCD_Init();
+    // HAL::ADC_Init();
     SNID = ESP.getEfuseMac();
     Free_Flash_Size = ESP.getFreeSketchSpace() / 1024; // Remaining flash size in KB
     Sketch_Size = ESP.getSketchSize() / 1024; // Program size in KB
@@ -45,6 +46,9 @@ void HAL::Sys_Run() {
         break;
     case AppState::VBUS_Curve:
         HAL::UI_VBUS_Curve();
+        break;
+    case AppState::VBUS_Waveform:
+        HAL::UI_VBUS_Waveform();
         break;
     case AppState::Menu:
         HAL::UI_Menu();

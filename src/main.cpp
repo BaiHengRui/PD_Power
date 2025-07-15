@@ -5,10 +5,12 @@
 TaskHandle_t sensorTaskHandle = NULL;
 TaskHandle_t displayTaskHandle = NULL;
 TaskHandle_t updateTaskHandle = NULL;
+TaskHandle_t waveformTaskHandle = NULL;
 
 void sensorTask(void *pvParameters);
 void displayTask(void *pvParameters);
 void updateTask(void *pvParameters);
+void waveformTask(void *pvParameters);
 
 void sensorTask(void *pvParameters){
   for (;;)
@@ -52,16 +54,26 @@ void updateTask(void *pvParameters){
   
 }
 
+void waveformTask(void *pvParameters){
+  for (;;)
+  {
+    HAL::ADC_Sampling();
+    esp_task_wdt_reset(); // Reset watchdog
+    vTaskDelay(pdMS_TO_TICKS(1)); //1ms delay
+  }
+  
+}
 void setup() {
   // put your setup code here, to run once:
   setCpuFrequencyMhz(240); //Full
   esp_task_wdt_init(10,false); //watch dog 10s time out
   HAL::Sys_Init();
   HAL::LCD_Light_Updat(1,0);
-  Now_App = 11;
+  Now_App = 3;
   xTaskCreatePinnedToCore(sensorTask,"Sensor",4096,NULL,1,&sensorTaskHandle,1);
   xTaskCreatePinnedToCore(displayTask,"Display",8192,NULL,2,&displayTaskHandle,1);
   xTaskCreatePinnedToCore(updateTask,"Update",8192,NULL,3,&updateTaskHandle,1);
+  xTaskCreatePinnedToCore(waveformTask,"Waveform",4096,NULL,2,&waveformTaskHandle,0);
 }
 
 void loop() {

@@ -170,7 +170,7 @@ void HAL::UI_VBUS_Curve(){
     const int graphWidth = 160; // 绘图区宽度
     const int graphHeight = 160;// 绘图区高度
 
-    spr.loadFont(Font1_12);
+    // spr.loadFont(Font1_12);
     spr.setTextColor(TFT_WHITE);
 
     // 左侧电压刻度
@@ -224,6 +224,70 @@ void HAL::UI_VBUS_Curve(){
     spr.setTextDatum(TR_DATUM); // 右对齐
     spr.drawString("A:" + String(LoadCurrent,4), 210, 2); 
     
+    spr.unloadFont();
+    spr.pushSprite(0, 0);
+    spr.deleteSprite();
+}
+
+void HAL::UI_VBUS_Waveform(){
+    static uint32_t lastFPSCalc = millis();
+    static uint32_t frameCount = 0;
+    const int GRAPH_X = 40;          // 绘图区X起始位置
+    const int GRAPH_Y = 40;          // 绘图区Y起始位置
+    const int GRAPH_WIDTH = 160;     // 绘图区宽度
+    const int GRAPH_HEIGHT = 160;    // 绘图区高度
+
+    spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
+    spr.fillScreen(TFT_BLACK);
+    spr.setTextDatum(CC_DATUM);
+    spr.setColorDepth(8);
+    spr.setTextColor(TFT_WHITE);
+    spr.loadFont(Font1_12);
+    // 安全映射函数（带防除零保护）
+    auto safeMap = [](float value, float inMin, float inMax, int outMin, int outMax) {
+        if (inMin >= inMax) return (outMin + outMax) / 2;
+        return (int)((value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin);
+    };
+    
+    //左侧电压刻度
+    spr.setTextColor(TFT_GREEN, TFT_BLACK);
+    for (int i = 0; i <= 3; i++) {
+        float val = 3.3 * voltageScale - (3.3 * voltageScale) * i / 3;
+        int y = safeMap(val, 0, 3.3 * voltageScale, 
+                      GRAPH_Y + GRAPH_HEIGHT, GRAPH_Y);
+        spr.drawString(String(val, 2) + "V", GRAPH_X - 10, y);
+    }
+    
+    //底部时间刻度
+    spr.setTextColor(TFT_YELLOW, TFT_BLACK);
+    for (int i = 0; i <= 4; i++) {
+        int x = GRAPH_X + (GRAPH_WIDTH * i) / 4;
+        spr.drawString(String(i * 0.5 * timeScale, 1) + "ms", x, GRAPH_Y + GRAPH_HEIGHT + 15);
+    }
+    //绘制网格线
+    // 水平线（电压刻度）
+    for (int i = 0; i <= 3; i++) {
+        int y = safeMap(3.3 * voltageScale * i / 3, 
+                      0, 3.3 * voltageScale, 
+                      GRAPH_Y + GRAPH_HEIGHT, GRAPH_Y);
+        spr.drawLine(GRAPH_X, y, GRAPH_X + GRAPH_WIDTH, y, 0x7BCF);
+    }
+    // 垂直线（时间刻度）
+    for (int i = 0; i <= 4; i++) {
+        int x = GRAPH_X + (GRAPH_WIDTH * i) / 4;
+        spr.drawLine(x, GRAPH_Y, x, GRAPH_Y + GRAPH_HEIGHT, 0x7BCF);
+    }
+
+    spr.drawRect(GRAPH_X, GRAPH_Y, GRAPH_WIDTH, GRAPH_HEIGHT, TFT_WHITE);
+    
+    spr.drawFastVLine(GRAPH_X + GRAPH_WIDTH/2, GRAPH_Y, GRAPH_HEIGHT, TFT_WHITE);
+    spr.drawFastHLine(GRAPH_X, GRAPH_Y + GRAPH_HEIGHT/2, GRAPH_WIDTH, TFT_WHITE);
+
+    spr.setTextColor(TFT_WHITE, TFT_BLACK);
+    spr.setCursor(10, 10);
+    spr.printf("FPS:%.1f Scale:%.1f", currentFPS, voltageScale);
+    
+    // 推送到屏幕
     spr.unloadFont();
     spr.pushSprite(0, 0);
     spr.deleteSprite();

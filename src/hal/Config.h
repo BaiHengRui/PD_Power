@@ -10,6 +10,7 @@
 #define FUSB302_INT_PIN 38
 #define LCD_BL_PIN 9
 #define BUZZER_PIN 33
+#define VBUS_ADC ADC1_CHANNEL_1 //IO2
 #define DN_PIN 4
 #define DP_PIN 7
 #define CC1_PIN 5
