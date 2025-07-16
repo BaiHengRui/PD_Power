@@ -234,6 +234,18 @@ void HAL::UI_VBUS_Curve() {
     spr.deleteSprite();
 }
 
+
+// 趋势检测相关全局变量
+enum VoltageTrend { STABLE, DECREASING, INCREASING };
+static VoltageTrend voltageTrend = STABLE;
+static unsigned long trendStartTime = 0;
+static float initialDecreaseMin = 0.0f;  // 进入下降状态时的初始最小值
+static float initialIncreaseMax = 0.0f;  // 进入上升状态时的初始最大值
+static float lastStableMin = 0.0f;       // 稳定状态下的参考最小值
+static float lastStableMax = 0.0f;       // 稳定状态下的参考最大值
+const unsigned long TREND_DELAY_MS = 2000; // 下降延迟调整时间（2秒）
+const float TREND_THRESHOLD = 0.05f;     // 趋势判断阈值（50mV，可调整）
+
 void HAL::UI_VBUS_Waveform() {
     const int GRAPH_X = 30;          // 左侧边距
     const int GRAPH_Y = 30;          // 顶部边距
@@ -244,13 +256,13 @@ void HAL::UI_VBUS_Waveform() {
     const int GRAPH_CENTER_X = GRAPH_X + GRAPH_WIDTH / 2;
     const int GRAPH_CENTER_Y = GRAPH_Y + GRAPH_HEIGHT / 2;
 
-    // 安全映射函数
+    // 安全映射函数（保持在函数内部）
     auto safeMap = [](float value, float inMin, float inMax, int outMin, int outMax) {
         if (inMin >= inMax) return (outMin + outMax) / 2;
         return (int)((value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin);
     };
 
-    // 安全获取极值函数
+    // 安全获取极值函数（保持在函数内部）
     auto safeExtremes = [](float* data, int len) -> std::pair<float, float> {
         if (len == 0) return {0, 0};
         float minVal = data[0], maxVal = data[0];
@@ -274,25 +286,79 @@ void HAL::UI_VBUS_Waveform() {
         voltageData[i] = adcBuffer[i] * (3.3 / 4095);
     }
 
-    // 获取极值并动态调整量程
+    // 获取极值
     std::pair<float, float> vExtremes = safeExtremes(voltageData, BUFFER_SIZE);
     float vMin = vExtremes.first;
     float vMax = vExtremes.second;
 
     // 计算数据波动范围
     float vRange = vMax - vMin;
-
-    // 电压量程调整
-    if (vRange < 0.1f) {  // 如果波动小于0.1
-        float center = (vMax + vMin) / 2;  // 计算中心值
-        voltageMin = center - 0.05f;        // 保持±0.05的范围
-        voltageMax = center + 0.05f;
+    
+    // 趋势检测与状态机（核心优化部分）
+    bool shouldAdjustRange = false;
+    
+    if (voltageTrend == DECREASING) {
+        // 已处于下降状态：检查是否继续下降
+        if (vMin < initialDecreaseMin - TREND_THRESHOLD) {
+            // 持续下降超过阈值：检查是否达到延迟时间
+            if (millis() - trendStartTime >= TREND_DELAY_MS) {
+                shouldAdjustRange = true;
+                lastStableMin = vMin;
+                lastStableMax = vMax;
+            }
+        } else {
+            // 下降趋势中断，切换回稳定状态
+            voltageTrend = STABLE;
+            lastStableMin = vMin;
+            lastStableMax = vMax;
+        }
+    } else if (voltageTrend == INCREASING) {
+        // 已处于上升状态：检查是否继续上升
+        if (vMax > initialIncreaseMax + TREND_THRESHOLD) {
+            shouldAdjustRange = true;  // 上升立即调整
+            lastStableMin = vMin;
+            lastStableMax = vMax;
+        } else {
+            // 上升趋势中断，切换回稳定状态
+            voltageTrend = STABLE;
+            lastStableMin = vMin;
+            lastStableMax = vMax;
+        }
     } else {
-        // 正常自动调整逻辑
-        voltageMax = vMax + vRange * 0.1f;
-        voltageMin = vMin - vRange * 0.1f;
+        // 当前处于稳定状态：检查是否进入新趋势
+        if (vMin < lastStableMin - TREND_THRESHOLD) {
+            // 首次检测到显著下降
+            voltageTrend = DECREASING;
+            trendStartTime = millis();
+            initialDecreaseMin = lastStableMin;
+        } else if (vMax > lastStableMax + TREND_THRESHOLD) {
+            // 首次检测到显著上升
+            voltageTrend = INCREASING;
+            initialIncreaseMax = lastStableMax;
+            shouldAdjustRange = true;  // 上升立即调整
+        } else {
+            // 保持稳定状态：仅当波动范围明显变化时调整
+            if (vRange > (lastStableMax - lastStableMin) * 1.5f) {
+                shouldAdjustRange = true;
+                lastStableMin = vMin;
+                lastStableMax = vMax;
+            }
+        }
     }
-    voltageMin = std::max(voltageMin, 0.0f); // 电压不低于0
+
+    // 电压量程调整（仅在shouldAdjustRange为true时执行）
+    if (shouldAdjustRange) {
+        if (vRange < 0.1f) {  // 如果波动小于0.1V
+            float center = (vMax + vMin) / 2;  // 计算中心值
+            voltageMin = center - 0.05f;        // 保持±0.05V的范围
+            voltageMax = center + 0.05f;
+        } else {
+            // 正常自动调整逻辑
+            voltageMax = vMax + vRange * 0.1f;
+            voltageMin = vMin - vRange * 0.1f;
+        }
+        voltageMin = std::max(voltageMin, 0.0f); // 电压不低于0
+    }
 
     // 左侧电压刻度
     spr.setTextColor(TFT_GREEN, TFT_BLACK);
@@ -327,11 +393,27 @@ void HAL::UI_VBUS_Waveform() {
     spr.drawFastVLine(GRAPH_CENTER_X, GRAPH_Y, GRAPH_HEIGHT, TFT_WHITE); // 使用预计算的中心
     spr.drawFastHLine(GRAPH_X, GRAPH_CENTER_Y, GRAPH_WIDTH, TFT_WHITE);   // 使用预计算的中心
 
-    // 显示参数信息
+    // 显示参数信息和趋势状态
     spr.setTextColor(TFT_WHITE, TFT_BLACK);
     spr.setTextDatum(TL_DATUM); // 左上对齐
     spr.setCursor(10, 10);
-    spr.printf("V:%.1f T:%.1f", voltageScale, timeScale);
+    spr.printf("V:%.1f T:%.1f ", voltageScale, timeScale);
+    
+    // 显示趋势状态
+    spr.setTextColor(voltageTrend == DECREASING ? TFT_RED : 
+                    (voltageTrend == INCREASING ? TFT_GREEN : TFT_WHITE));
+    switch(voltageTrend) {
+        case STABLE: spr.print("STABLE"); break;
+        case DECREASING: spr.print("DOWN "); break;
+        case INCREASING: spr.print("UP   "); break;
+    }
+    
+    // 显示延迟倒计时
+    if (voltageTrend == DECREASING && !shouldAdjustRange) {
+        spr.setTextColor(TFT_YELLOW);
+        spr.setCursor(120, 10);
+        spr.printf("Adjust in: %.1fs", (TREND_DELAY_MS - (millis() - trendStartTime)) / 1000.0f);
+    }
 
     // 绘制波形
     if (adcBuffer) {
@@ -350,7 +432,7 @@ void HAL::UI_VBUS_Waveform() {
             y = constrain(y, GRAPH_Y, GRAPH_Y + GRAPH_HEIGHT);
 
             // 绘制线段
-            spr.drawLine(prevX, prevY, x, y, TFT_YELLOW);
+            spr.drawLine(prevX, prevY, x, y, TFT_CYAN);
 
             prevX = x;
             prevY = y;
@@ -359,13 +441,14 @@ void HAL::UI_VBUS_Waveform() {
 
     // 显示时间戳（调试用）
     spr.setTextDatum(BL_DATUM); // 左下对齐
+    spr.setTextColor(TFT_WHITE);
     spr.setCursor(10, 230);
     spr.print(millis());
 
     spr.unloadFont();
     spr.pushSprite(0, 0);  // 将精灵内容推送到屏幕
     spr.deleteSprite();    // 释放精灵内存
-}
+}    
 
 void HAL::UI_PowerDelivery(){
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);

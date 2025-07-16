@@ -53,7 +53,7 @@ extern int EEPROM_App_addr;
 extern int EEPROM_WiFi_addr;
 
 /*adc*/
-#define BUFFER_SIZE 128
+#define BUFFER_SIZE 256
 extern volatile uint16_t adcBuffer[];
 extern volatile uint16_t bufferIndex;
 extern float voltageScale; // 电压缩放因子
