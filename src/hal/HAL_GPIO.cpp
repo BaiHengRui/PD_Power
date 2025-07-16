@@ -16,6 +16,8 @@ void HAL::GPIO_Init() {
     pinMode(SW4, INPUT);
     pinMode(CC1_PIN, INPUT);
     pinMode(CC2_PIN, INPUT);
+    pinMode(VBUS_ADC,INPUT);
+    pinMode(BUZZER_PIN,OUTPUT);
 
 }
 

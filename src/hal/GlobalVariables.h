@@ -53,7 +53,11 @@ extern int EEPROM_App_addr;
 extern int EEPROM_WiFi_addr;
 
 /*adc*/
-
+#define BUFFER_SIZE 128
+extern volatile uint16_t adcBuffer[];
+extern volatile uint16_t bufferIndex;
+extern float voltageScale; // 电压缩放因子
+extern float timeScale;    // 时间缩放因子
 /*fps*/
 extern unsigned long lastFPSTime;
 extern unsigned int frameCount;

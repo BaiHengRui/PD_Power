@@ -95,7 +95,7 @@ void HAL::UI_Main(){
     spr.deleteSprite();
 }
 
-void HAL::UI_VBUS_Curve(){
+void HAL::UI_VBUS_Curve() {
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
     spr.setTextDatum(CC_DATUM);
@@ -130,167 +130,241 @@ void HAL::UI_VBUS_Curve(){
     float cMin = cExtremes.first;
     float cMax = cExtremes.second;
 
-    // 计算数据波动范围
-    float vRange = vMax - vMin;
-    float cRange = cMax - cMin;
+    // 平滑因子
+    const float smoothFactor = 0.1;
 
     // 电压量程调整
-    if (vRange < 1.0f) {  // 如果波动小于1.0
+    float vRange = vMax - vMin;
+    if (vRange < 1.0f) {
+        float center = (vMax + vMin) / 2;
+        voltageMin = (1 - smoothFactor) * voltageMin + smoothFactor * (center - 0.5f);
+        voltageMax = (1 - smoothFactor) * voltageMax + smoothFactor * (center + 0.5f);
+    } else {
+        voltageMax = (1 - smoothFactor) * voltageMax + smoothFactor * (vMax + vRange * 0.1f);
+        voltageMin = (1 - smoothFactor) * voltageMin + smoothFactor * (vMin - vRange * 0.1f);
+    }
+    voltageMin = std::max(voltageMin, 0.0f);
+
+    // 电流量程调整
+    float cRange = cMax - cMin;
+    if (cRange < 0.1f) {
+        float center = (cMax + cMin) / 2;
+        currentMin = (1 - smoothFactor) * currentMin + smoothFactor * (center - 0.05f);
+        currentMax = (1 - smoothFactor) * currentMax + smoothFactor * (center + 0.05f);
+    } else {
+        currentMax = (1 - smoothFactor) * currentMax + smoothFactor * (cMax + cRange * 0.1f);
+        currentMin = (1 - smoothFactor) * currentMin + smoothFactor * (cMin - cRange * 0.1f);
+    }
+    currentMin = std::max(currentMin, 0.0f);
+    if (currentMax - currentMin < 0.1f) currentMax = currentMin + 0.1f;
+
+    // 安全映射函数
+    auto safeMap = [](float value, float inMin, float inMax, int outMin, int outMax) {
+        if (inMin >= inMax) return (outMin + outMax) / 2;
+        return (int)((value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin);
+    };
+
+    // 绘制区域参数
+    const int graphX = 40;
+    const int graphY = 40;
+    const int graphWidth = 160;
+    const int graphHeight = 160;
+
+    // 绘制刻度和网格线
+    auto drawScale = [&](float minVal, float maxVal, int color, int xOffset, int isVoltage) {
+        spr.setTextColor(color);
+        for (int i = 0; i <= 3; i++) {
+            float val = maxVal - (maxVal - minVal) * i / 3;
+            int y = safeMap(val, minVal, maxVal, graphY + graphHeight, graphY);
+            spr.drawString(String(isVoltage ? val / 10 : val, 2), xOffset, y + 2);
+        }
+    };
+
+    auto drawGrid = [&](float minVal, float maxVal, int isVertical) {
+        spr.setTextColor(TFT_CYAN, TFT_BLACK);
+        for (int i = 0; i <= 3; i++) {
+            if (isVertical) {
+                int x = graphX + (graphWidth * i) / 3;
+                spr.drawLine(x, graphY, x, graphY + graphHeight, 0x7BCF);
+            } else {
+                int y = safeMap(minVal + (maxVal - minVal) * i / 3, minVal, maxVal, graphY + graphHeight, graphY);
+                spr.drawLine(graphX, y, graphX + graphWidth, y, 0x7BCF);
+            }
+        }
+    };
+
+    // 左侧电压刻度
+    drawScale(voltageMin, voltageMax, TFT_GREEN, graphX - 20, 1);
+
+    // 右侧电流刻度
+    drawScale(currentMin, currentMax, TFT_YELLOW, graphX + graphWidth + 15, 0);
+
+    // 绘制网格线
+    drawGrid(voltageMin, voltageMax, 0);
+    drawGrid(voltageMin, voltageMax, 1);
+
+    // 绘制曲线
+    auto drawCurve = [&](float* data, float minVal, float maxVal, int color) {
+        for (int i = 1; i < VNUM_POINTS; i++) {
+            int x1 = safeMap(i - 1, 0, VNUM_POINTS - 1, graphX, graphX + graphWidth);
+            int y1 = safeMap(data[i - 1], minVal, maxVal, graphY + graphHeight, graphY);
+            int x2 = safeMap(i, 0, VNUM_POINTS - 1, graphX, graphX + graphWidth);
+            int y2 = safeMap(data[i], minVal, maxVal, graphY + graphHeight, graphY);
+            spr.drawLine(x1, y1, x2, y2, color);
+        }
+    };
+
+    // 绘制电压曲线
+    drawCurve(VoltageData, voltageMin, voltageMax, TFT_GREEN);
+
+    // 绘制电流曲线
+    drawCurve(CurrentData, currentMin, currentMax, TFT_YELLOW);
+
+    // 量程指示
+    spr.setTextColor(TFT_GREEN);
+    spr.setTextDatum(TL_DATUM);
+    spr.drawString("V:" + String(LoadVoltage, 4), 30, 2);
+
+    spr.setTextColor(TFT_YELLOW);
+    spr.setTextDatum(TR_DATUM);
+    spr.drawString("A:" + String(LoadCurrent, 4), 210, 2);
+
+    spr.unloadFont();
+    spr.pushSprite(0, 0);
+    spr.deleteSprite();
+}
+
+void HAL::UI_VBUS_Waveform() {
+    const int GRAPH_X = 30;          // 左侧边距
+    const int GRAPH_Y = 30;          // 顶部边距
+    const int GRAPH_WIDTH = 180;     // 绘图区宽度
+    const int GRAPH_HEIGHT = 160;    // 绘图区高度
+
+    // 计算中央位置用于坐标轴
+    const int GRAPH_CENTER_X = GRAPH_X + GRAPH_WIDTH / 2;
+    const int GRAPH_CENTER_Y = GRAPH_Y + GRAPH_HEIGHT / 2;
+
+    // 安全映射函数
+    auto safeMap = [](float value, float inMin, float inMax, int outMin, int outMax) {
+        if (inMin >= inMax) return (outMin + outMax) / 2;
+        return (int)((value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin);
+    };
+
+    // 安全获取极值函数
+    auto safeExtremes = [](float* data, int len) -> std::pair<float, float> {
+        if (len == 0) return {0, 0};
+        float minVal = data[0], maxVal = data[0];
+        for (int i = 1; i < len; ++i) {
+            if (data[i] < minVal) minVal = data[i];
+            if (data[i] > maxVal) maxVal = data[i];
+        }
+        return {minVal, maxVal};
+    };
+
+    // 创建精灵
+    spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
+    spr.fillScreen(TFT_BLACK);
+    spr.setTextDatum(CC_DATUM);
+    spr.setTextColor(TFT_WHITE);
+    spr.loadFont(Font1_12);
+
+    // 将ADC采样值转换为电压值
+    float voltageData[BUFFER_SIZE];
+    for (int i = 0; i < BUFFER_SIZE; ++i) {
+        voltageData[i] = adcBuffer[i] * (3.3 / 4095);
+    }
+
+    // 获取极值并动态调整量程
+    std::pair<float, float> vExtremes = safeExtremes(voltageData, BUFFER_SIZE);
+    float vMin = vExtremes.first;
+    float vMax = vExtremes.second;
+
+    // 计算数据波动范围
+    float vRange = vMax - vMin;
+
+    // 电压量程调整
+    if (vRange < 0.1f) {  // 如果波动小于0.1
         float center = (vMax + vMin) / 2;  // 计算中心值
-        voltageMin = center - 0.5f;        // 保持±0.5的范围
-        voltageMax = center + 0.5f;
+        voltageMin = center - 0.05f;        // 保持±0.05的范围
+        voltageMax = center + 0.05f;
     } else {
         // 正常自动调整逻辑
         voltageMax = vMax + vRange * 0.1f;
         voltageMin = vMin - vRange * 0.1f;
     }
     voltageMin = std::max(voltageMin, 0.0f); // 电压不低于0
-    // 电流量程调整
-
-    if (cRange < 0.1f) {
-        float center = (cMax + cMin) / 2;
-        currentMin = center - 0.05f;
-        currentMax = center + 0.05f;
-    } else {
-        currentMax = cMax + cRange * 0.1f;
-        currentMin = cMin - cRange * 0.1f;
-    }
-
-    currentMin = std::max(currentMin, 0.0f);
-    if (currentMax - currentMin < 0.1f) currentMax = currentMin + 0.1f;
-    // 安全映射函数
-    auto safeMap = [](float value, float inMin, float inMax, int outMin, int outMax) {
-        if (inMin >= inMax) return (outMin + outMax) / 2; // 防除零保护
-        return (int)((value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin);
-    };
-
-    // 绘制区域参数
-    const int graphX = 40;      // 左侧留空40px
-    const int graphY = 40;      // 顶部留空40px
-    const int graphWidth = 160; // 绘图区宽度
-    const int graphHeight = 160;// 绘图区高度
-
-    // spr.loadFont(Font1_12);
-    spr.setTextColor(TFT_WHITE);
 
     // 左侧电压刻度
-    spr.setTextColor(TFT_GREEN);
-    for (int i = 0; i <= 3; i++) {
-        float val = voltageMax - (voltageMax - voltageMin) * i / 3;
-        int y = safeMap(val, voltageMin, voltageMax, graphY + graphHeight, graphY);
-        spr.drawString(String(val/10,2), graphX-20, y+2); // 左侧显示电压值
-    }
-
-    // 右侧电流刻度
-    spr.setTextColor(TFT_YELLOW);
-    for (int i = 0; i <= 3; i++) {
-        float val = currentMax - (currentMax - currentMin) * i / 3;
-        int y = safeMap(val, currentMin, currentMax, graphY + graphHeight, graphY);
-        spr.drawString(String(val/10,2), graphX + graphWidth + 15, y+2); // 右侧显示电流值
-    }
-
-    // 绘制网格线
-    for (int i = 0; i <= 3; i++) {
-        int y = safeMap(voltageMin + (voltageMax-voltageMin)*i/3, 
-                      voltageMin, voltageMax, graphY+graphHeight, graphY);
-        spr.drawLine(graphX, y, graphX+graphWidth, y, 0x7BCF);
-    }
-    for (int i = 0; i <= 3; i++) {
-        int x = graphX + (graphWidth * i) / 3;
-        spr.drawLine(x, graphY, x, graphY + graphHeight, 0x7BCF);
-    }
-
-    // 绘制曲线
-    for (int i = 1; i < VNUM_POINTS; i++) {
-        // 电压
-        int x1 = safeMap(i-1, 0, VNUM_POINTS-1, graphX, graphX+graphWidth);
-        int y1 = safeMap(VoltageData[i-1], voltageMin, voltageMax, graphY+graphHeight, graphY);
-        int x2 = safeMap(i, 0, VNUM_POINTS-1, graphX, graphX+graphWidth);
-        int y2 = safeMap(VoltageData[i], voltageMin, voltageMax, graphY+graphHeight, graphY);
-        spr.drawLine(x1, y1, x2, y2, TFT_GREEN);
-
-        // 电流
-        int cy1 = safeMap(CurrentData[i-1], currentMin, currentMax, graphY+graphHeight, graphY);
-        int cy2 = safeMap(CurrentData[i], currentMin, currentMax, graphY+graphHeight, graphY);
-        spr.drawLine(x1, cy1, x2, cy2, TFT_YELLOW);
-    }
-
-    // 量程指示
-    spr.setTextColor(TFT_GREEN);
-    spr.setTextDatum(TL_DATUM); // 左对齐
-    spr.drawString("V:" + String(LoadVoltage,4), 30, 2);
-
-    spr.setTextColor(TFT_YELLOW);
-    spr.setTextDatum(TR_DATUM); // 右对齐
-    spr.drawString("A:" + String(LoadCurrent,4), 210, 2); 
-    
-    spr.unloadFont();
-    spr.pushSprite(0, 0);
-    spr.deleteSprite();
-}
-
-void HAL::UI_VBUS_Waveform(){
-    static uint32_t lastFPSCalc = millis();
-    static uint32_t frameCount = 0;
-    const int GRAPH_X = 40;          // 绘图区X起始位置
-    const int GRAPH_Y = 40;          // 绘图区Y起始位置
-    const int GRAPH_WIDTH = 160;     // 绘图区宽度
-    const int GRAPH_HEIGHT = 160;    // 绘图区高度
-
-    spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
-    spr.fillScreen(TFT_BLACK);
-    spr.setTextDatum(CC_DATUM);
-    spr.setColorDepth(8);
-    spr.setTextColor(TFT_WHITE);
-    spr.loadFont(Font1_12);
-    // 安全映射函数（带防除零保护）
-    auto safeMap = [](float value, float inMin, float inMax, int outMin, int outMax) {
-        if (inMin >= inMax) return (outMin + outMax) / 2;
-        return (int)((value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin);
-    };
-    
-    //左侧电压刻度
     spr.setTextColor(TFT_GREEN, TFT_BLACK);
     for (int i = 0; i <= 3; i++) {
-        float val = 3.3 * voltageScale - (3.3 * voltageScale) * i / 3;
-        int y = safeMap(val, 0, 3.3 * voltageScale, 
-                      GRAPH_Y + GRAPH_HEIGHT, GRAPH_Y);
-        spr.drawString(String(val, 2) + "V", GRAPH_X - 10, y);
+        float val = voltageMax - (voltageMax - voltageMin) * i / 3;
+        int y = safeMap(val, voltageMin, voltageMax, GRAPH_Y + GRAPH_HEIGHT, GRAPH_Y);
+        spr.drawString(String(val, 2) + "V", GRAPH_X - 15, y); // 调整水平位置
     }
-    
-    //底部时间刻度
+
+    // 底部时间刻度
     spr.setTextColor(TFT_YELLOW, TFT_BLACK);
     for (int i = 0; i <= 4; i++) {
         int x = GRAPH_X + (GRAPH_WIDTH * i) / 4;
         spr.drawString(String(i * 0.5 * timeScale, 1) + "ms", x, GRAPH_Y + GRAPH_HEIGHT + 15);
     }
-    //绘制网格线
-    // 水平线（电压刻度）
+
+    // 绘制网格线
+    spr.setTextColor(TFT_CYAN, TFT_BLACK);
     for (int i = 0; i <= 3; i++) {
-        int y = safeMap(3.3 * voltageScale * i / 3, 
-                      0, 3.3 * voltageScale, 
-                      GRAPH_Y + GRAPH_HEIGHT, GRAPH_Y);
+        int y = safeMap(voltageMin + (voltageMax - voltageMin) * i / 3,
+                        voltageMin, voltageMax, GRAPH_Y + GRAPH_HEIGHT, GRAPH_Y);
         spr.drawLine(GRAPH_X, y, GRAPH_X + GRAPH_WIDTH, y, 0x7BCF);
     }
-    // 垂直线（时间刻度）
+
     for (int i = 0; i <= 4; i++) {
         int x = GRAPH_X + (GRAPH_WIDTH * i) / 4;
         spr.drawLine(x, GRAPH_Y, x, GRAPH_Y + GRAPH_HEIGHT, 0x7BCF);
     }
 
+    // 绘制坐标轴
     spr.drawRect(GRAPH_X, GRAPH_Y, GRAPH_WIDTH, GRAPH_HEIGHT, TFT_WHITE);
-    
-    spr.drawFastVLine(GRAPH_X + GRAPH_WIDTH/2, GRAPH_Y, GRAPH_HEIGHT, TFT_WHITE);
-    spr.drawFastHLine(GRAPH_X, GRAPH_Y + GRAPH_HEIGHT/2, GRAPH_WIDTH, TFT_WHITE);
+    spr.drawFastVLine(GRAPH_CENTER_X, GRAPH_Y, GRAPH_HEIGHT, TFT_WHITE); // 使用预计算的中心
+    spr.drawFastHLine(GRAPH_X, GRAPH_CENTER_Y, GRAPH_WIDTH, TFT_WHITE);   // 使用预计算的中心
 
+    // 显示参数信息
     spr.setTextColor(TFT_WHITE, TFT_BLACK);
+    spr.setTextDatum(TL_DATUM); // 左上对齐
     spr.setCursor(10, 10);
-    spr.printf("FPS:%.1f Scale:%.1f", currentFPS, voltageScale);
-    
-    // 推送到屏幕
+    spr.printf("V:%.1f T:%.1f", voltageScale, timeScale);
+
+    // 绘制波形
+    if (adcBuffer) {
+        int prevX = GRAPH_X;
+        int prevY = safeMap(voltageData[0], voltageMin, voltageMax, GRAPH_Y + GRAPH_HEIGHT, GRAPH_Y);
+
+        // 计算显示的采样点数（基于时间缩放）
+        int visibleSamples = std::min(BUFFER_SIZE, (int)(BUFFER_SIZE * timeScale));
+
+        for (int i = 1; i < visibleSamples; i++) {
+            int x = GRAPH_X + map(i, 0, visibleSamples, 0, GRAPH_WIDTH);
+            int y = safeMap(voltageData[i], voltageMin, voltageMax, GRAPH_Y + GRAPH_HEIGHT, GRAPH_Y);
+
+            // 约束坐标
+            x = constrain(x, GRAPH_X, GRAPH_X + GRAPH_WIDTH);
+            y = constrain(y, GRAPH_Y, GRAPH_Y + GRAPH_HEIGHT);
+
+            // 绘制线段
+            spr.drawLine(prevX, prevY, x, y, TFT_YELLOW);
+
+            prevX = x;
+            prevY = y;
+        }
+    }
+
+    // 显示时间戳（调试用）
+    spr.setTextDatum(BL_DATUM); // 左下对齐
+    spr.setCursor(10, 230);
+    spr.print(millis());
+
     spr.unloadFont();
-    spr.pushSprite(0, 0);
-    spr.deleteSprite();
+    spr.pushSprite(0, 0);  // 将精灵内容推送到屏幕
+    spr.deleteSprite();    // 释放精灵内存
 }
 
 void HAL::UI_PowerDelivery(){

@@ -42,6 +42,11 @@ int EEPROM_Rotation_addr = 2; // EEPROM address for LCD rotation
 int EEPROM_App_addr = 3; // EEPROM address for current app
 int EEPROM_WiFi_addr = 23; // EEPROM address for WiFi configuration
 
+volatile uint16_t adcBuffer[BUFFER_SIZE];
+volatile uint16_t bufferIndex = 0;
+float voltageScale = 1.0; // 电压缩放因子
+float timeScale = 0.5;    // 时间缩放因子
+
 unsigned long lastFPSTime = 0;
 unsigned int frameCount = 0;
 float currentFPS = 0;

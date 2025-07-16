@@ -18,7 +18,6 @@ void sensorTask(void *pvParameters){
     HAL::INA22x_Run();
     HAL::GPIO_Run();
     HAL::PD_Run();
-
     vTaskDelay(pdMS_TO_TICKS(10)); //1ms delay 1k sps
   }
   
@@ -69,6 +68,7 @@ void setup() {
   esp_task_wdt_init(10,false); //watch dog 10s time out
   HAL::Sys_Init();
   HAL::LCD_Light_Updat(1,0);
+  HAL::ADC_Init();
   Now_App = 3;
   xTaskCreatePinnedToCore(sensorTask,"Sensor",4096,NULL,1,&sensorTaskHandle,1);
   xTaskCreatePinnedToCore(displayTask,"Display",8192,NULL,2,&displayTaskHandle,1);

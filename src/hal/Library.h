@@ -6,8 +6,6 @@
 #include <esp32-hal-gpio.h>
 #include <esp32-hal-adc.h>
 
-#include <driver/i2s.h>
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <esp_task_wdt.h>
@@ -25,5 +23,6 @@
 #include <Button2.h>
 #include <PD_UFP.h>
 #include <WiFiManager.h>
+#include <ESP32AnalogRead.h>
 
 #endif // LIBRARY_H
