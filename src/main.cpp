@@ -57,7 +57,7 @@ void waveformTask(void *pvParameters){
   for (;;)
   {
     HAL::ADC_Sampling();
-    esp_task_wdt_reset(); // Reset watchdog
+    // esp_task_wdt_reset(); // Reset watchdog
     vTaskDelay(pdMS_TO_TICKS(1)); //1ms delay
   }
   
@@ -68,7 +68,6 @@ void setup() {
   esp_task_wdt_init(10,false); //watch dog 10s time out
   HAL::Sys_Init();
   HAL::LCD_Light_Updat(1,0);
-  HAL::ADC_Init();
   Now_App = 3;
   xTaskCreatePinnedToCore(sensorTask,"Sensor",4096,NULL,1,&sensorTaskHandle,1);
   xTaskCreatePinnedToCore(displayTask,"Display",8192,NULL,2,&displayTaskHandle,1);
