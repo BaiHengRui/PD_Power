@@ -23,6 +23,5 @@
 #include <Button2.h>
 #include <PD_UFP.h>
 #include <WiFiManager.h>
-#include <ESP32AnalogRead.h>
 
 #endif // LIBRARY_H

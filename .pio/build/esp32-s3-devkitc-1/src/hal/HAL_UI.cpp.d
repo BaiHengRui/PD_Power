@@ -304,10 +304,6 @@
  C:/Users/bhr13/.platformio/packages/framework-arduinoespressif32/libraries/DNSServer/src/DNSServer.h \
  C:/Users/bhr13/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiUdp.h \
  lib/WiFiManager/wm_strings_en.h lib/WiFiManager/wm_consts_en.h \
- lib/ESP32AnalogRead/ESP32AnalogRead.h \
- C:/Users/bhr13/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_adc_cal/include/esp_adc_cal.h \
- C:/Users/bhr13/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/driver/include/driver/adc.h \
- C:/Users/bhr13/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/hal/include/hal/adc_types.h \
  src/hal/GlobalVariables.h src/hal/Config.h src/Fonts/Font1_12.h \
  src/Fonts/Font1_18.h src/Fonts/Font1_20.h src/ui/cloud_download.h \
  src/ui/update_error.h src/ui/update_success.h src/ui/wlan_error.h
