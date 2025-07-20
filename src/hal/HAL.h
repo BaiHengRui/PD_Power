@@ -45,7 +45,7 @@ namespace HAL
     void LCD_Refresh_Screen(uint32_t bgcolor =0x0000);
     void UI_Main();
     void UI_VBUS_Curve();
-    void UI_VBUS_Waveform();
+    void UI_Page1();
     void UI_PowerDelivery();
     void UI_QuickCharge();
     void UI_LOG();
@@ -57,6 +57,10 @@ namespace HAL
     void UI_OTA_Fail();
     void UI_WiFi_Connect();
     void UI_WiFi_Connect_Fail();
+
+    /* button */
+    void Button_Init();
+    void Button_Run();
 
     typedef struct
     {
@@ -73,7 +77,7 @@ namespace HAL
 namespace AppState {
     constexpr int Main = 1;
     constexpr int VBUS_Curve = 2;
-    constexpr int VBUS_Waveform = 3;
+    constexpr int Page1 = 3;
     constexpr int Menu = 4;
     constexpr int Log = 5;
     constexpr int PowerDelivery = 6;

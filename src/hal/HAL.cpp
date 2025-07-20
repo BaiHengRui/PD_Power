@@ -47,8 +47,8 @@ void HAL::Sys_Run() {
     case AppState::VBUS_Curve:
         HAL::UI_VBUS_Curve();
         break;
-    case AppState::VBUS_Waveform:
-        HAL::UI_VBUS_Waveform();
+    case AppState::Page1:
+        HAL::UI_Page1();
         break;
     case AppState::Menu:
         HAL::UI_Menu();

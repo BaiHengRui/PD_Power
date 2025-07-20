@@ -304,4 +304,4 @@
  C:/Users/bhr13/.platformio/packages/framework-arduinoespressif32/libraries/DNSServer/src/DNSServer.h \
  C:/Users/bhr13/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiUdp.h \
  lib/WiFiManager/wm_strings_en.h lib/WiFiManager/wm_consts_en.h \
- src/hal/GlobalVariables.h
+ src/hal/GlobalVariables.h src/hal/Config.h

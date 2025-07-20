@@ -5,12 +5,12 @@
 TaskHandle_t sensorTaskHandle = NULL;
 TaskHandle_t displayTaskHandle = NULL;
 TaskHandle_t updateTaskHandle = NULL;
-TaskHandle_t waveformTaskHandle = NULL;
+TaskHandle_t buttonTaskHandle = NULL;
 
 void sensorTask(void *pvParameters);
 void displayTask(void *pvParameters);
 void updateTask(void *pvParameters);
-void waveformTask(void *pvParameters);
+void buttonTask(void *pvParameters);
 
 void sensorTask(void *pvParameters){
   for (;;)
@@ -38,7 +38,7 @@ void displayTask(void *pvParameters){
 
     HAL::Sys_Run();
 
-    vTaskDelay(pdMS_TO_TICKS(20)); //20ms delay 50 fps
+    vTaskDelay(pdMS_TO_TICKS(1)); //20ms delay 50 fps
   }
   
 }
@@ -53,12 +53,12 @@ void updateTask(void *pvParameters){
   
 }
 
-void waveformTask(void *pvParameters){
+void buttonTask(void *pvParameters){
   for (;;)
   {
-    HAL::ADC_Sampling();
-    // esp_task_wdt_reset(); // Reset watchdog
-    vTaskDelay(pdMS_TO_TICKS(1)); //1ms delay
+    HAL::Button_Run(); // Button Task
+    esp_task_wdt_reset(); // Reset watchdog
+    vTaskDelay(pdMS_TO_TICKS(10)); //10ms delay
   }
   
 }
@@ -69,10 +69,10 @@ void setup() {
   HAL::Sys_Init();
   HAL::LCD_Light_Updat(1,0);
   Now_App = 3;
-  xTaskCreatePinnedToCore(sensorTask,"Sensor",4096,NULL,1,&sensorTaskHandle,1);
+  xTaskCreatePinnedToCore(sensorTask,"Sensor",4096,NULL,1,&sensorTaskHandle,0);
   xTaskCreatePinnedToCore(displayTask,"Display",8192,NULL,2,&displayTaskHandle,1);
   xTaskCreatePinnedToCore(updateTask,"Update",8192,NULL,3,&updateTaskHandle,1);
-  xTaskCreatePinnedToCore(waveformTask,"Waveform",4096,NULL,2,&waveformTaskHandle,0);
+  xTaskCreatePinnedToCore(buttonTask,"Button",4096,NULL,2,&buttonTaskHandle,0);
 }
 
 void loop() {
