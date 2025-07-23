@@ -38,3 +38,14 @@ void HAL::PD_Run() {
     PD_Position = PD_UFP.get_selected_position(); // 获取PD位置
     ccbus_used = PD_UFP.get_cc_pin(); // 获取CC线状态，0/NULL 1/CC1 2/CC2
 }
+
+void HAL::QC_Init() {
+    // Quick Charge initialization code can be added here
+    Serial.println("Quick Charge Init!");
+}
+
+void HAL::QC_Run() {
+    // Quick Charge run code can be added here
+    // For now, just a placeholder
+    Serial.println("Quick Charge Run!");
+}

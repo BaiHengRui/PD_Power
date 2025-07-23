@@ -26,18 +26,17 @@ namespace HAL
     void INA22x_Init();
     void INA22x_Run();
 
-    /*pd */
+    /* charge */
     void PD_Init();
     void PD_Run();
+    void QC_Init();
+    void QC_Run();
 
     /* buzzer */
     void Buzzer_Init();
     void Buzzer_Short();
     void Buzzer_Long();
 
-    /* adc */
-    void ADC_Init();
-    void ADC_Sampling();
     /* ui */
     void LCD_Init();
     void LCD_Light_Updat(int light, bool saved);
