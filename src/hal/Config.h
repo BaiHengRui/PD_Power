@@ -24,3 +24,5 @@
 #define BUZZER_FREQUENCY 4000 // Buzzer frequency in Hz
 
 #endif
+
+//现在编译完不能正常使用，还在开发
