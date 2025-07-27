@@ -251,16 +251,72 @@ void HAL::UI_Page1() {
     spr.pushSprite(0, 0);
     spr.deleteSprite();
 }    
-
+    const uint8_t MAX_LINES = 9;
+    const uint8_t LINE_HEIGHT = 20;
+    const uint8_t START_Y = 1;
+    String logBuffer[MAX_LINES];
 void HAL::UI_PowerDelivery(){
-    spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
+    spr.createSprite(240, 240);
     spr.fillScreen(TFT_BLACK);
-    spr.setTextDatum(CC_DATUM);
+    spr.setTextDatum(TL_DATUM);
     spr.setColorDepth(8);
+    spr.loadFont(Font1_18); // 加载字体
+    spr.fillRect(0,0,240,22,0X7EB1); // 绘制顶部边框
     spr.setTextColor(TFT_WHITE);
+    spr.setCursor(5, 2); // 设置光标位置
+    spr.print("PDO Log"); // 显示标题
+    spr.unloadFont();
     spr.loadFont(Font1_12);
-    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
-    spr.print("Power Delivery PAGE !");
+    spr.setTextColor(TFT_WHITE);
+    static bool firstRun = true; // 用于第一次加载时的特殊处理
+    if (firstRun) {
+        // 初始化显示缓冲区
+        for (int i = 0; i < MAX_LINES; i++)
+        {
+            logBuffer[i] = "";
+            firstRun = false; // 只在第一次运行时执行
+        } 
+    }
+    static long PDtimeMillis = millis(); // 用于记录PD时间
+    if (millis() - PDtimeMillis >= 200)
+    {
+        PDtimeMillis = millis(); // 更新PD时间
+        // 更新显示缓冲区
+        for (int i = 0; i < MAX_LINES -1; i++)
+        {
+            logBuffer[i] = logBuffer[i + 1]; // 向上移动一行
+        }
+        // logBuffer[MAX_LINES - 1] = String(buf); // 将最新的PD数据放在最后一行
+    }
+    logBuffer[MAX_LINES - 1] = String(pdbuf); // 将最新的PD数据放在最后一行
+    spr.fillRect(0,24,spr.width(), LINE_HEIGHT * MAX_LINES, TFT_BLACK); // 清除显示区域
+    for (int i = 0; i < MAX_LINES; i++)
+    {
+        // spr.drawString(logBuffer[i], 0, START_Y + i * LINE_HEIGHT); // 绘制每一行
+        spr.drawString(logBuffer[i], 0, 24 + i * LINE_HEIGHT, 1); // 绘制每一行
+    }
+
+    spr.setTextColor(0XA7FA);
+    spr.setCursor(5, 220); // 设置光标位置
+    if (PD_Option == 0)
+    {
+        spr.print("FIX:" + String(PD_Voltage*0.05,2) + "V " + String(PD_Current*0.01,2) + "A");
+    }else if (PD_Option == 1)
+    {
+        spr.print("PPS:" + String(PD_Voltage*0.02,2) + "V " + String(PD_Current*0.05,2) + "A");
+    }
+    spr.print(" SRC:" + String(PD_Src_Cap_Count));
+    spr.print(" POS:" + String(PD_Position));
+    if (ccbus_used == 0)
+    {
+        spr.print(" CC:N/A");
+    }else if (ccbus_used == 1)
+    {
+        spr.print(" CC:CC1");
+    }else if (ccbus_used == 2)
+    {
+        spr.print(" CC:CC2");
+    }
     spr.unloadFont();
     spr.pushSprite(0, 0);
     spr.deleteSprite();

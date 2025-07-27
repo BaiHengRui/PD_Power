@@ -5,7 +5,8 @@ PD_UFP_Log_c PD_UFP(PD_LOG_LEVEL_VERBOSE);
 
 void HAL::PD_Init() {
     // PD_UFP.init_PPS(FUSB302_INT_PIN,PPS_V(PD_POWER_OPTION_MAX_VOLTAGE), PPS_A(PD_POWER_OPTION_MAX_CURRENT), PD_POWER_OPTION_MAX_POWER);
-    PD_UFP.init_PPS(FUSB302_INT_PIN,PPS_V(8.4),PPS_A(2.0));
+    PD_UFP.init(FUSB302_INT_PIN,PD_POWER_OPTION_MAX_9V);
+    // PD_UFP.init_PPS(FUSB302_INT_PIN,PPS_V(8.4),PPS_A(2.0));
     Serial.println("FUSB302 PD Sink Init!");
 }
 
@@ -14,8 +15,7 @@ void HAL::PD_Run() {
     static long PDtimeMillis = millis();
     if (millis() - PDtimeMillis >= 200) { // 200ms
         PDtimeMillis = millis();
-        char buf[128];
-        PD_UFP.status_log_readline(buf, sizeof(buf) - 1);
+        PD_UFP.status_log_readline(pdbuf, sizeof(pdbuf) - 1);
         // Serial.printf(buf);
     }
     

@@ -68,11 +68,11 @@ void setup() {
   esp_task_wdt_init(10,false); //watch dog 10s time out
   HAL::Sys_Init();
   HAL::LCD_Light_Updat(1,0);
-  Now_App = 3;
+  Now_App = 6;
   xTaskCreatePinnedToCore(sensorTask,"Sensor",4096,NULL,1,&sensorTaskHandle,0);
   xTaskCreatePinnedToCore(displayTask,"Display",8192,NULL,2,&displayTaskHandle,1);
   xTaskCreatePinnedToCore(updateTask,"Update",8192,NULL,3,&updateTaskHandle,1);
-  xTaskCreatePinnedToCore(buttonTask,"Button",4096,NULL,2,&buttonTaskHandle,0);
+  xTaskCreatePinnedToCore(buttonTask,"Button",4096,NULL,3,&buttonTaskHandle,0);
 }
 
 void loop() {
