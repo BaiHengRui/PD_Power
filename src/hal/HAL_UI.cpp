@@ -15,12 +15,6 @@ TFT_eSprite spr = TFT_eSprite(&tft);
 float VoltageData[VNUM_POINTS] = {0};
 float CurrentData[VNUM_POINTS] = {0};
 float PowerData[VNUM_POINTS] = {0};
-float voltageMax = 10;    // 初始值10V
-float voltageMin = 0;
-float currentMax = 1;     // 初始值1A
-float currentMin = 0;;
-float powerMax = 50;
-float powerMin = 0;
 
 void HAL::LCD_Init(){
     // analogWrite(LCD_BL_PIN,0);
@@ -137,26 +131,26 @@ void HAL::UI_VBUS_Curve() {
     float vRange = vMax - vMin;
     if (vRange < 1.0f) {
         float center = (vMax + vMin) / 2;
-        voltageMin = (1 - smoothFactor) * voltageMin + smoothFactor * (center - 0.5f);
-        voltageMax = (1 - smoothFactor) * voltageMax + smoothFactor * (center + 0.5f);
+        MinVoltage = (1 - smoothFactor) * MinVoltage + smoothFactor * (center - 0.5f);
+        MaxVoltage = (1 - smoothFactor) * MaxVoltage + smoothFactor * (center + 0.5f);
     } else {
-        voltageMax = (1 - smoothFactor) * voltageMax + smoothFactor * (vMax + vRange * 0.1f);
-        voltageMin = (1 - smoothFactor) * voltageMin + smoothFactor * (vMin - vRange * 0.1f);
+        MaxVoltage = (1 - smoothFactor) * MaxVoltage + smoothFactor * (vMax + vRange * 0.1f);
+        MinVoltage = (1 - smoothFactor) * MinVoltage + smoothFactor * (vMin - vRange * 0.1f);
     }
-    voltageMin = std::max(voltageMin, 0.0f);
+    MinVoltage = std::max(MinVoltage, 0.0f);
 
     // 电流量程调整
     float cRange = cMax - cMin;
     if (cRange < 0.1f) {
         float center = (cMax + cMin) / 2;
-        currentMin = (1 - smoothFactor) * currentMin + smoothFactor * (center - 0.05f);
-        currentMax = (1 - smoothFactor) * currentMax + smoothFactor * (center + 0.05f);
+        MinCurrent = (1 - smoothFactor) * MinCurrent + smoothFactor * (center - 0.05f);
+        MaxCurrent = (1 - smoothFactor) * MaxCurrent + smoothFactor * (center + 0.05f);
     } else {
-        currentMax = (1 - smoothFactor) * currentMax + smoothFactor * (cMax + cRange * 0.1f);
-        currentMin = (1 - smoothFactor) * currentMin + smoothFactor * (cMin - cRange * 0.1f);
+        MaxCurrent = (1 - smoothFactor) * MaxCurrent + smoothFactor * (cMax + cRange * 0.1f);
+        MinCurrent = (1 - smoothFactor) * MinCurrent + smoothFactor * (cMin - cRange * 0.1f);
     }
-    currentMin = std::max(currentMin, 0.0f);
-    if (currentMax - currentMin < 0.1f) currentMax = currentMin + 0.1f;
+    MinCurrent = std::max(MinCurrent, 0.0f);
+    if (MaxCurrent - MinCurrent < 0.1f) MaxCurrent = MinCurrent + 0.1f;
 
     // 安全映射函数
     auto safeMap = [](float value, float inMin, float inMax, int outMin, int outMax) {
@@ -194,14 +188,14 @@ void HAL::UI_VBUS_Curve() {
     };
 
     // 左侧电压刻度
-    drawScale(voltageMin, voltageMax, TFT_GREEN, graphX - 20, 1);
+    drawScale(MinVoltage, MaxVoltage, TFT_GREEN, graphX - 20, 1);
 
     // 右侧电流刻度
-    drawScale(currentMin, currentMax, TFT_YELLOW, graphX + graphWidth + 15, 0);
+    drawScale(MinCurrent, MaxCurrent, TFT_YELLOW, graphX + graphWidth + 15, 0);
 
     // 绘制网格线
-    drawGrid(voltageMin, voltageMax, 0);
-    drawGrid(voltageMin, voltageMax, 1);
+    drawGrid(MinVoltage, MaxVoltage, 0);
+    drawGrid(MinVoltage, MaxVoltage, 1);
 
     // 绘制曲线
     auto drawCurve = [&](float* data, float minVal, float maxVal, int color) {
@@ -215,10 +209,10 @@ void HAL::UI_VBUS_Curve() {
     };
 
     // 绘制电压曲线
-    drawCurve(VoltageData, voltageMin, voltageMax, TFT_GREEN);
+    drawCurve(VoltageData, MinVoltage, MaxVoltage, TFT_GREEN);
 
     // 绘制电流曲线
-    drawCurve(CurrentData, currentMin, currentMax, TFT_YELLOW);
+    drawCurve(CurrentData, MinCurrent, MaxCurrent, TFT_YELLOW);
 
     // 量程指示
     spr.setTextColor(TFT_GREEN);

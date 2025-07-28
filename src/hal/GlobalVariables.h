@@ -51,6 +51,7 @@ extern int EEPROM_Light_addr;
 extern int EEPROM_Rotation_addr;
 extern int EEPROM_App_addr;
 extern int EEPROM_WiFi_addr;
+extern int PD_ON_addr;
 
 /*fps*/
 extern unsigned long lastFPSTime;

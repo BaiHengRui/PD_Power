@@ -12,8 +12,8 @@ bool CurrentDirection = 0; // 0: Discharging, 1: Charging
 float mAh = 0.0f, mWh = 0.0f, Ah = 0.0f, Wh = 0.0f;
 float Capacity = 0.0f, Energy = 0.0f;
 float Record_Power = 0.0f;
-float MaxVoltage = 5.0f, MaxCurrent = 0.0f, MaxPower = 0.0f;
-float MinVoltage = 5.0f, MinCurrent = 0.0f, MinPower = 0.0f;
+float MaxVoltage = 10.0f, MaxCurrent = 1.0f, MaxPower = 10.0f;
+float MinVoltage = 0.0f, MinCurrent = 0.0f, MinPower = 0.0f;
 
 float v_DN = 0.0f, v_DP = 0.0f;
 float v_CC1 = 0.0f, v_CC2 = 0.0f;
@@ -42,6 +42,7 @@ int EEPROM_Light_addr = 1; // EEPROM address for LCD light
 int EEPROM_Rotation_addr = 2; // EEPROM address for LCD rotation
 int EEPROM_App_addr = 3; // EEPROM address for current app
 int EEPROM_WiFi_addr = 23; // EEPROM address for WiFi configuration
+int PD_ON_addr = 24; // EEPROM address for PD ON state
 
 unsigned long lastFPSTime = 0;
 unsigned int frameCount = 0;
