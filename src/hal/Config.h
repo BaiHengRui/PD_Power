@@ -2,14 +2,14 @@
 #define CONFIG_H
 // Build Version
 // >Major Minor Patch (Language)
-#define FirmwareVer "1.0.6b"
+#define FirmwareVer "1.0.7b"
 
 #define I2C_SDA_PIN 36
 #define I2C_SCL_PIN 35
 
 #define FUSB302_INT_PIN 38
 #define LCD_BL_PIN 18
-#define BUZZER_PIN 33
+#define BUZZER_PIN 33 
 #define VBUS_ADC 7
 #define DN_PIN 3
 #define DP_PIN 4

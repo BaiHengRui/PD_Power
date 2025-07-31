@@ -42,6 +42,7 @@ class PD_UFP_c
         // Init
         void init(uint8_t int_pin, enum PD_power_option_t power_option = PD_POWER_OPTION_MAX_5V);
         void init_PPS(uint8_t int_pin, uint16_t PPS_voltage, uint8_t PPS_current, enum PD_power_option_t power_option = PD_POWER_OPTION_MAX_5V);
+        bool enable_vbus_sense(bool enable = 1);  //VBUS 检测
         // Task
         void run(void);
         // Status

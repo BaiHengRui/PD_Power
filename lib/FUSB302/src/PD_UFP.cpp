@@ -63,6 +63,12 @@ PD_UFP_c::PD_UFP_c():
     memset(&protocol, 0, sizeof(PD_protocol_t));
 }
 
+bool PD_UFP_c::enable_vbus_sense(bool enable)
+{
+    FUSB302_set_vbus_sense(&FUSB302, enable);
+    return true;
+}
+
 void PD_UFP_c::init(uint8_t int_pin, enum PD_power_option_t power_option)
 {
     init_PPS(int_pin, 0, 0, power_option);

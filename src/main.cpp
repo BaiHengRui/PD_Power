@@ -57,8 +57,8 @@ void buttonTask(void *pvParameters){
   for (;;)
   {
     HAL::Button_Run(); // Button Task
-    esp_task_wdt_reset(); // Reset watchdog
-    vTaskDelay(pdMS_TO_TICKS(10)); //10ms delay
+    // esp_task_wdt_reset(); // Reset watchdog
+    vTaskDelay(pdMS_TO_TICKS(5)); //5ms delay
   }
   
 }

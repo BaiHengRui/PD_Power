@@ -3,6 +3,7 @@
 #include "Fonts/Font1_12.h"
 #include "Fonts/Font1_18.h"
 #include "Fonts/Font1_20.h"
+#include "Fonts/Font1_40.h"
 #include "ui/cloud_download.h"
 #include "ui/update_error.h"
 #include "ui/update_success.h"
@@ -53,36 +54,44 @@ void HAL::UI_Main(){
     spr.setTextDatum(CC_DATUM);
     spr.setColorDepth(8);
     spr.setTextColor(TFT_WHITE);
-    spr.loadFont(Font1_20);
-    spr.setCursor(2,10);
-    spr.setTextColor(TFT_GREEN);
-    spr.print(LoadVoltage,4);
-    spr.print("Vbus");
-    spr.setCursor(2,35);
-    spr.setTextColor(TFT_CYAN);
-    spr.print(LoadCurrent,4);
-    spr.print("Ibus");
-    spr.setCursor(2,60);
-    spr.setTextColor(TFT_YELLOW);
-    spr.print(LoadPower,4);
-    spr.print("Power");
+    spr.loadFont(Font1_40);
 
+    // spr.setTextColor(TFT_WHITE);
+    spr.setCursor(5,5);  
+    spr.setTextColor(TFT_GREEN);
+    spr.print(LoadVoltage, LoadVoltage < 10 ? 5 : 4);
+    spr.setCursor(140,5);
+    spr.print("V");
+
+    spr.setCursor(5,52); 
+    spr.setTextColor(TFT_YELLOW);
+    spr.print(LoadCurrent, LoadCurrent < 10 ? 5 : 4);
+    spr.setCursor(140,52);
+    spr.print("A");
+
+    spr.setCursor(5,97); 
+    spr.setTextColor(TFT_CYAN);
+    spr.print(LoadPower, LoadPower < 10 ? 5 : (LoadPower < 100 ? 4 : 3));
+    spr.setCursor(140,97);
+    spr.print("W");
     spr.unloadFont();
+
     spr.loadFont(Font1_12);
-    spr.setCursor(2,120);
+    spr.setCursor(0, 150);
+    spr.setTextColor(TFT_YELLOW);
+    spr.println("  SET:");
     if (PD_Option == 0)
     {
-        spr.print("FIX:" + String(PD_Voltage*0.05,2) + "V " + String(PD_Current*0.01,2) + "A");
+        spr.println("  FIX: " + String(PD_Voltage*0.05,2) + "V " + String(PD_Current*0.01,2) + "A");
     }else if (PD_Option == 1)
     {
-        spr.print("PPS:" + String(PD_Voltage*0.02,2) + "V " + String(PD_Current*0.05,2) + "A");
+        spr.println("  PPS: " + String(PD_Voltage*0.02,2) + "V " + String(PD_Current*0.05,2) + "A");
     }
-    spr.setCursor(2,140);
-    spr.print("SRC:" + String(PD_Src_Cap_Count));
-    spr.print("-POS:" + String(PD_Position));
+    spr.print("  SRC:" + String(PD_Src_Cap_Count));
+    spr.print("  POS:" + String(PD_Position));
 
-    spr.setTextColor(TFT_WHITE);
     spr.setCursor(180,10);
+    spr.setTextColor(TFT_WHITE);
     spr.print("FPS:" + String(currentFPS,2));
     spr.unloadFont();
     spr.pushSprite(0, 0);
@@ -228,7 +237,6 @@ void HAL::UI_VBUS_Curve() {
     spr.deleteSprite();
 }
 
-
 void HAL::UI_Page1() {
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
@@ -244,7 +252,8 @@ void HAL::UI_Page1() {
     spr.unloadFont();
     spr.pushSprite(0, 0);
     spr.deleteSprite();
-}    
+}
+
     const uint8_t MAX_LINES = 9;
     const uint8_t LINE_HEIGHT = 20;
     const uint8_t START_Y = 1;
@@ -311,6 +320,9 @@ void HAL::UI_PowerDelivery(){
     {
         spr.print(" CC:CC2");
     }
+    spr.setTextColor(TFT_WHITE);
+    spr.setCursor(180,10);
+    spr.print("FPS:" + String(currentFPS,2));
     spr.unloadFont();
     spr.pushSprite(0, 0);
     spr.deleteSprite();

@@ -24,6 +24,7 @@ void HAL::Sys_Init() {
     HAL::PD_Init();
     HAL::Buzzer_Init();
     HAL::LCD_Init();
+    HAL::Button_Init();
     // HAL::ADC_Init();
     SNID = ESP.getEfuseMac();
     Free_Flash_Size = ESP.getFreeSketchSpace() / 1024; // Remaining flash size in KB

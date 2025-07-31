@@ -10,10 +10,10 @@ void HAL::GPIO_Init() {
     pinMode(DP_PIN, INPUT);
     pinMode(DN_PIN, INPUT);
     pinMode(NTC_PIN, INPUT);
-    pinMode(SW1, INPUT);
-    pinMode(SW2, INPUT);
-    pinMode(SW3, INPUT);
-    pinMode(SW4, INPUT);
+    pinMode(SW1, INPUT_PULLDOWN);
+    pinMode(SW2, INPUT_PULLDOWN);
+    pinMode(SW3, INPUT_PULLDOWN);
+    pinMode(SW4, INPUT_PULLDOWN);
     pinMode(CC1_PIN, INPUT);
     pinMode(CC2_PIN, INPUT);
     pinMode(VBUS_ADC,INPUT);

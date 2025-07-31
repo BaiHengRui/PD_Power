@@ -30,7 +30,7 @@ void Key1LongClick(Button2&btn1){
     unsigned int time1max = 1000;
 
     if (time1 >= time1max) {
-        bottunStatus = "Button1 Long Pressed";
+        Now_App = 1; // 返回主界面
     }else if (time1 >= 300 && time1 < time1max) {
         bottunStatus = "Button1 Pressed";
     }else if (time1 >= time1max)
@@ -52,12 +52,13 @@ void Key2LongClick(Button2&btn2){
     }
 }
 
-// 按键2: 向下
+// 按键3: 向下
 void Key3LongClick(Button2&btn3){
     unsigned int time3 = btn3.wasPressedFor();
     unsigned int time3max = 1000;
     if (time3 >= time3max) {
         bottunStatus = "Button3 Long Pressed";
+        Now_App = 12; // 进入OTA界面
     }else if (time3 >= 300 && time3 < time3max) {
         bottunStatus = "Button3 Pressed";
     }else if (time3 < 300) {
