@@ -15,7 +15,7 @@
 #define DP_PIN 4
 #define CC1_PIN 1
 #define CC2_PIN 2
-#define NTC_PIN 37
+#define NTC_PIN 17
 #define SW1 0
 #define SW2 8
 #define SW3 9
@@ -25,4 +25,4 @@
 
 #endif
 
-//现在编译完不能正常使用，还在开发
+//现在编译完不能生产模式，还在开发

@@ -37,7 +37,6 @@ void displayTask(void *pvParameters){
         }
 
     HAL::Sys_Run();
-
     vTaskDelay(pdMS_TO_TICKS(1)); //20ms delay 50 fps
   }
   
@@ -68,7 +67,7 @@ void setup() {
   esp_task_wdt_init(10,false); //watch dog 10s time out
   HAL::Sys_Init();
   HAL::LCD_Light_Updat(1,0);
-  Now_App = 6;
+  Now_App = 2;
   xTaskCreatePinnedToCore(sensorTask,"Sensor",4096,NULL,1,&sensorTaskHandle,0);
   xTaskCreatePinnedToCore(displayTask,"Display",8192,NULL,2,&displayTaskHandle,1);
   xTaskCreatePinnedToCore(updateTask,"Update",8192,NULL,3,&updateTaskHandle,1);

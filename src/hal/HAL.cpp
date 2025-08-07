@@ -42,40 +42,40 @@ void HAL::Sys_Run() {
     // HAL::PD_Run();
     switch (Now_App)
     {
-    case AppState::Main:
+    case AppState::Main:  //App 1
         HAL::UI_Main();
         break;
-    case AppState::VBUS_Curve:
+    case AppState::VBUS_Curve:  //App 2
         HAL::UI_VBUS_Curve();
         break;
-    case AppState::Page1:
+    case AppState::Page1:   //App 3
         HAL::UI_Page1();
         break;
-    case AppState::Menu:
+    case AppState::Menu:    //App 4
         HAL::UI_Menu();
         break;
-    case AppState::Log:
+    case AppState::Log: //App 5
         HAL::UI_LOG();
         break;
-    case AppState::PowerDelivery:
+    case AppState::PowerDelivery:   //App 6
         HAL::UI_PowerDelivery();
         break;
-    case AppState::QuickCharge:
+    case AppState::QuickCharge: //App 7
         HAL::UI_QuickCharge();
         break;
-    case AppState::SystemInfo:
+    case AppState::SystemInfo:  //App 8
         HAL::UI_SystemInfo();
         break;
-    case AppState::Setting:
+    case AppState::Setting: //App 9
         HAL::UI_Setting();
         break;
-    case AppState::WiFi_Connect:
+    case AppState::WiFi_Connect:    //App 10
         HAL::UI_WiFi_Connect();
         break;
-    case AppState::WiFi_Connect_Fail:
+    case AppState::WiFi_Connect_Fail:   //App 11
         HAL::UI_WiFi_Connect_Fail();
         break;  
-    case AppState::OTA_Update:
+    case AppState::OTA_Update:  //App 12
         if(OTA_Status.OTARun == 0)
         {
             HAL::WebUpdate();
@@ -83,14 +83,14 @@ void HAL::Sys_Run() {
             OTA_Status.OTARun = 1;
         }
         break;   
-    case AppState::OTA_Finish:
+    case AppState::OTA_Finish:  //App 13
         HAL::UI_OTA_Finish();
         break;
-    case AppState::OTA_Fail:
+    case AppState::OTA_Fail:    //App 14
         HAL::UI_OTA_Fail();
         break;
     default:
-        HAL::UI_Main();
+        HAL::UI_Main(); //App 1
         break;
     }
 }
