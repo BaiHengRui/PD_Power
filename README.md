@@ -2,7 +2,8 @@
 
 # 未开放完全阶段
 ## 更改显示界面
-到"PD_Power\src\main.cpp"文件里，更改`setup()`函数，Now_App = 2;的值，界面代号在"src\hal\HAL.cpp"里的`Sys_Run()`有注明  
+到"PD_Power\src\main.cpp"文件里，更改`setup()`函数，Now_App = 2;的值，界面代号在"src\hal\HAL.cpp"里的`Sys_Run()`有注明
+
 ## 如果你想要测试PD功能
 到"src/hal/HAL_Protocol.cpp"文件里，`void HAL::PD_Init()`函数  
 `PD_UFP.init_PPS(FUSB302_INT_PIN,PPS_V(20),PPS_A(5));`则是握手PPS档20V 5A  
