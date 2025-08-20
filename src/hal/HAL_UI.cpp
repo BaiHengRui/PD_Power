@@ -18,7 +18,7 @@ float CurrentData[VNUM_POINTS] = {0};
 float PowerData[VNUM_POINTS] = {0};
 
 void HAL::LCD_Init(){
-    // analogWrite(LCD_BL_PIN,0);
+    analogWrite(LCD_BL_PIN,0);
     spr.init();
     spr.invertDisplay(LCD_InvertDisplay);
     spr.setRotation(LCD_Rotation);
@@ -29,6 +29,10 @@ void HAL::LCD_Init(){
     LCD_Rotation = (Rotation_temp >=0 && Rotation_temp <= 3) ? Rotation_temp : LCD_Rotation;
     if(Light_temp >=1 && Light_temp <=100){EEPROM.write(EEPROM_Light_addr,LCD_Light);EEPROM.commit();}
     if(Rotation_temp >=0 && Rotation_temp <=3){EEPROM.write(EEPROM_Rotation_addr,LCD_Rotation);EEPROM.commit();}
+
+    tft.fillScreen(0x0000);
+    delay(100);
+    HAL::LCD_Light_Updat(LCD_Light,0);
 }
 
 void HAL::LCD_Light_Updat(int light, bool saved){
