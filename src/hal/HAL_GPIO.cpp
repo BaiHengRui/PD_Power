@@ -19,6 +19,7 @@ void HAL::GPIO_Init() {
     pinMode(VBUS_ADC,INPUT);
     pinMode(BUZZER_PIN,OUTPUT);
 
+
 }
 
 void HAL::GPIO_Run() {

@@ -19,9 +19,9 @@ float PowerData[VNUM_POINTS] = {0};
 
 void HAL::LCD_Init(){
     analogWrite(LCD_BL_PIN,0);
-    spr.init();
-    spr.invertDisplay(LCD_InvertDisplay);
-    spr.setRotation(LCD_Rotation);
+    tft.init();
+    tft.invertDisplay(LCD_InvertDisplay);
+    tft.setRotation(LCD_Rotation);
 
     int Light_temp = EEPROM.read(EEPROM_Light_addr);
     int Rotation_temp = EEPROM.read(EEPROM_Rotation_addr);
@@ -31,7 +31,7 @@ void HAL::LCD_Init(){
     if(Rotation_temp >=0 && Rotation_temp <=3){EEPROM.write(EEPROM_Rotation_addr,LCD_Rotation);EEPROM.commit();}
 
     tft.fillScreen(0x0000);
-    delay(150); //延时150ms，等待屏幕初始化完成
+    delay(50); //延时50ms，等待屏幕初始化完成
     HAL::LCD_Light_Updat(LCD_Light,0);
 }
 
