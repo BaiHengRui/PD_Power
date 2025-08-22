@@ -178,12 +178,12 @@
 // #define TFT_RST   PIN_D4  // Reset pin (could connect to NodeMCU RST, see next line)
 //#define TFT_RST  -1     // Set TFT_RST to -1 if the display RESET is connected to NodeMCU RST or 3.3V
 #define TFT_BACKLIGHT_ON LOW
-#define TFT_BL 18
-#define TFT_MOSI 11
+#define TFT_BL 9
+#define TFT_MOSI 13
 #define TFT_SCLK 12
-#define TFT_CS   13
-#define TFT_DC   14
-#define TFT_RST  17
+#define TFT_CS   11
+#define TFT_DC   10
+#define TFT_RST  14
 
 //#define TFT_BL PIN_D1  // LED back-light (only for ST7789 with backlight control pin)
 

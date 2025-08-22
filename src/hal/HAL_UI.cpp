@@ -31,7 +31,7 @@ void HAL::LCD_Init(){
     if(Rotation_temp >=0 && Rotation_temp <=3){EEPROM.write(EEPROM_Rotation_addr,LCD_Rotation);EEPROM.commit();}
 
     tft.fillScreen(0x0000);
-    delay(100);
+    delay(150); //延时150ms，等待屏幕初始化完成
     HAL::LCD_Light_Updat(LCD_Light,0);
 }
 
@@ -258,11 +258,37 @@ void HAL::UI_Page1() {
     spr.deleteSprite();
 }
 
+void HAL::UI_PowerDelivery(){
+    spr.createSprite(240, 240);
+    spr.fillScreen(TFT_BLACK);
+    spr.setTextDatum(TL_DATUM);
+    spr.setColorDepth(8);
+    spr.loadFont(Font1_18); // 加载字体
+
+    spr.unloadFont();
+    spr.pushSprite(0, 0);
+    spr.deleteSprite();
+}
+
+void HAL::UI_QuickCharge(){
+    spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
+    spr.fillScreen(TFT_BLACK);
+    spr.setTextDatum(CC_DATUM);
+    spr.setColorDepth(8);
+    spr.setTextColor(TFT_WHITE);
+    spr.loadFont(Font1_12);
+    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
+    spr.print("Quick Charge PAGE!");
+    spr.unloadFont();
+    spr.pushSprite(0, 0);
+    spr.deleteSprite();
+}
+
     const uint8_t MAX_LINES = 9;
     const uint8_t LINE_HEIGHT = 20;
     const uint8_t START_Y = 1;
     String logBuffer[MAX_LINES];
-void HAL::UI_PowerDelivery(){
+void HAL::UI_LOG(){
     spr.createSprite(240, 240);
     spr.fillScreen(TFT_BLACK);
     spr.setTextDatum(TL_DATUM);
@@ -332,36 +358,6 @@ void HAL::UI_PowerDelivery(){
     spr.deleteSprite();
 }
 
-void HAL::UI_QuickCharge(){
-    spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
-    spr.fillScreen(TFT_BLACK);
-    spr.setTextDatum(CC_DATUM);
-    spr.setColorDepth(8);
-    spr.setTextColor(TFT_WHITE);
-    spr.loadFont(Font1_12);
-    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
-    spr.print("Quick Charge PAGE!");
-    spr.unloadFont();
-    spr.pushSprite(0, 0);
-    spr.deleteSprite();
-}
-
-void HAL::UI_LOG(){
-    spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
-    spr.fillScreen(TFT_BLACK);
-    spr.setTextDatum(CC_DATUM);
-    spr.setColorDepth(8);
-    spr.setTextColor(TFT_WHITE);
-    spr.loadFont(Font1_12);
-
-    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
-    spr.print("LOG PAGE!");
-
-    spr.unloadFont();
-    spr.pushSprite(0, 0);
-    spr.deleteSprite();
-}
-
 void HAL::UI_Menu(){
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
@@ -383,10 +379,12 @@ void HAL::UI_Setting(){
     spr.setTextDatum(CC_DATUM);
     spr.setColorDepth(8);
     spr.setTextColor(TFT_WHITE);
-    spr.loadFont(Font1_12);
+    spr.loadFont(Font1_18);
 
-    spr.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
-    spr.print("Setting PAGE!");
+    spr.setCursor(2,2);
+    spr.print("Default Enable PD: " + String(PD_Enable ? "ON" : "OFF"));
+    spr.setCursor(2,22);
+    spr.print("LCD Light: " + String(LCD_Light) + "%");
 
     spr.unloadFont();
     spr.pushSprite(0, 0);

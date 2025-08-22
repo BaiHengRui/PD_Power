@@ -19,6 +19,7 @@ float v_DN = 0.0f, v_DP = 0.0f;
 float v_CC1 = 0.0f, v_CC2 = 0.0f;
 float NTCv = 0.0f, NTCm = 0.0f, NTC_Temperature = 0.0f;
 
+bool PD_Enable = 0;
 char pdbuf[128];
 bool PD_Option = 0; // default 0 FIX/1 PPS
 bool PD_Ready = 0; // 0 not ready/1 ready
