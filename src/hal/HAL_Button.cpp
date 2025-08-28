@@ -33,10 +33,7 @@ void Key1LongClick(Button2&btn1){
         Now_App = 1; // 返回主界面
     }else if (time1 >= 300 && time1 < time1max) {
         bottunStatus = "Button1 Pressed";
-    }else if (time1 >= time1max)
-    {
-        bottunStatus = "Button1 Short Pressed";
-    }  
+    }
 }
 
 // 按键2: 返回
@@ -47,8 +44,6 @@ void Key2LongClick(Button2&btn2){
         bottunStatus = "Button2 Long Pressed";
     }else if (time2 >= 300 && time2 < time2max) {
         bottunStatus = "Button2 Pressed";
-    }else if (time2 < 300) {
-        bottunStatus = "Button2 Short Pressed";
     }
 }
 
@@ -61,8 +56,6 @@ void Key3LongClick(Button2&btn3){
         Now_App = 12; // 进入OTA界面
     }else if (time3 >= 300 && time3 < time3max) {
         bottunStatus = "Button3 Pressed";
-    }else if (time3 < 300) {
-        bottunStatus = "Button3 Short Pressed";
     }
 }
 
@@ -74,8 +67,6 @@ void Key4LongClick(Button2&btn4){
         bottunStatus = "Button4 Long Pressed";
     }else if (time4 >= 300 && time4 < time4max) {
         bottunStatus = "Button4 Pressed";
-    }else if (time4 < 300) {
-        bottunStatus = "Button4 Short Pressed";
     }
 }
 

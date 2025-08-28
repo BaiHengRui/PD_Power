@@ -1,4 +1,4 @@
-.pio/build/esp32-s3-devkitc-1/src/hal/HAL_UI.cpp.o: src/hal/HAL_UI.cpp \
+.pio/build/esp32-s3-devkitc-1/src/hal/hal_ui.cpp.o: src/hal/hal_ui.cpp \
  src/hal/HAL.h src/hal/Library.h \
  C:/Users/bhr13/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h \
  C:/Users/bhr13/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp_arduino_version.h \
