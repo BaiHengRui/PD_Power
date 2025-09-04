@@ -35,6 +35,7 @@ void HAL::LCD_Init(){
     HAL::LCD_Light_Updat(LCD_Light,0);
 }
 
+// 调整背光亮度，范围1-100，saved为true时保存到EEPROM
 void HAL::LCD_Light_Updat(int light, bool saved){
     light = constrain(light,1,100);//限制大小
     int light_pwm = 255 - ((100 - light) * 1.5);
@@ -42,16 +43,19 @@ void HAL::LCD_Light_Updat(int light, bool saved){
     if(saved == 1){EEPROM.write(EEPROM_Light_addr,light);EEPROM.commit();}
 }
 
+// 调整屏幕旋转，范围0-3，saved为true时保存到EEPROM
 void HAL::LCD_Rotation_Update(int rotation, bool saved){
     LCD_Rotation = constrain(rotation,0,3);
     tft.setRotation(LCD_Rotation);
     if(saved == 1){EEPROM.write(EEPROM_Rotation_addr,LCD_Rotation);EEPROM.commit();}
 }
 
+// 刷新屏幕为指定背景色
 void HAL::LCD_Refresh_Screen(uint32_t bgcolor){
     spr.fillScreen(bgcolor);
 }
 
+// 主界面显示
 void HAL::UI_Main(){
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
@@ -102,6 +106,7 @@ void HAL::UI_Main(){
     spr.deleteSprite();
 }
 
+// VBUS 电压电流曲线显示
 void HAL::UI_VBUS_Curve() {
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
@@ -241,6 +246,7 @@ void HAL::UI_VBUS_Curve() {
     spr.deleteSprite();
 }
 
+// 测试界面
 void HAL::UI_Page1() {
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
@@ -258,6 +264,7 @@ void HAL::UI_Page1() {
     spr.deleteSprite();
 }
 
+// PD 电源配置界面
 void HAL::UI_PowerDelivery(){
     spr.createSprite(240, 240);
     spr.fillScreen(TFT_BLACK);
@@ -270,6 +277,7 @@ void HAL::UI_PowerDelivery(){
     spr.deleteSprite();
 }
 
+// 快充协议界面
 void HAL::UI_QuickCharge(){
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
@@ -284,6 +292,7 @@ void HAL::UI_QuickCharge(){
     spr.deleteSprite();
 }
 
+// PD日志界面
     const uint8_t MAX_LINES = 9;
     const uint8_t LINE_HEIGHT = 20;
     const uint8_t START_Y = 1;
@@ -358,6 +367,7 @@ void HAL::UI_LOG(){
     spr.deleteSprite();
 }
 
+// 菜单界面
 void HAL::UI_Menu(){
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
@@ -373,6 +383,7 @@ void HAL::UI_Menu(){
     spr.deleteSprite();
 }
 
+// 设置界面
 void HAL::UI_Setting(){
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
@@ -391,10 +402,12 @@ void HAL::UI_Setting(){
     spr.deleteSprite();
 }
 
+// 系统信息界面
 void HAL::UI_SystemInfo(){
     /**/
 }
 
+// OTA 更新界面
 void HAL::UI_OTA_Update(){
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
@@ -436,6 +449,7 @@ void HAL::UI_OTA_Update(){
     spr.deleteSprite();
 }
 
+// OTA 更新完成界面
 void HAL::UI_OTA_Finish(){
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
@@ -461,6 +475,7 @@ void HAL::UI_OTA_Finish(){
     spr.deleteSprite();
 }
 
+// OTA 更新失败界面
 void HAL::UI_OTA_Fail(){
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
@@ -487,6 +502,7 @@ void HAL::UI_OTA_Fail(){
     spr.deleteSprite();
 }
 
+// WiFi 连接界面
 void HAL::UI_WiFi_Connect(){
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
@@ -506,6 +522,7 @@ void HAL::UI_WiFi_Connect(){
     spr.deleteSprite();
 }
 
+// WiFi 连接失败界面
 void HAL::UI_WiFi_Connect_Fail(){
     spr.createSprite(TFT_WIDTH, TFT_HEIGHT);
     spr.fillScreen(TFT_BLACK);
