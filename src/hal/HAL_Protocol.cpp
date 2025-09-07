@@ -43,6 +43,9 @@ void HAL::PD_Run() {
 void HAL::QC_Init() {
     // Quick Charge initialization code can be added here
     Serial.println("Quick Charge Init!");
+    digitalWrite(DP_PIN, 75);
+    delay(1250);
+    digitalWrite(DP_PIN, 0);
 }
 
 void HAL::QC_Run() {
@@ -50,3 +53,4 @@ void HAL::QC_Run() {
     // For now, just a placeholder
     Serial.println("Quick Charge Run!");
 }
+//开学了没开发板，项目搁置一会，后续会把菜单完善
