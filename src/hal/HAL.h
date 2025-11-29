@@ -31,6 +31,7 @@ namespace HAL
     void PD_Run();
     void QC_Init();
     void QC_Run();
+    /* pd protocol */
 
     /* buzzer */
     void Buzzer_Init();

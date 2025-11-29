@@ -1,4 +1,4 @@
-#include "HAL.h"
+#include "hal.h"
 #include "Library.h"
 #include "Config.h"
 #include "html/ota.h"

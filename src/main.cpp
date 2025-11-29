@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "hal/HAL.h"
+#include "hal/hal.h"
 #include "hal/Config.h"
 
 TaskHandle_t sensorTaskHandle = NULL;

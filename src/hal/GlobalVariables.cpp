@@ -49,4 +49,4 @@ unsigned long lastFPSTime = 0;
 unsigned int frameCount = 0;
 float currentFPS = 0;
 
-String bottunStatus = "NULL"; // Button status, initialized to "NULL"
+String bottonStatus = "NULL"; // Button status, initialized to "NULL"

@@ -32,6 +32,21 @@ enum {
 };
 typedef uint8_t status_power_t;
 
+// 监听功能数据结构
+struct pd_monitor_t {
+    uint32_t packet_count;          // 数据包计数
+    uint32_t good_crc_count;        // 成功CRC计数
+    uint32_t reject_count;          // 拒绝计数
+    uint16_t last_voltage;          // 最后一次电压
+    uint16_t last_current;          // 最后一次电流
+    uint32_t last_timestamp;        // 最后时间戳
+    bool cc_status;                 // CC线状态
+    uint8_t cc_pin;                 // CC引脚状态
+    uint8_t src_cap_count;          // 源能力数量
+    uint8_t selected_position;      // 选择位置
+    status_power_t power_status;    // 电源状态
+};
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // PD_UFP_c
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -57,6 +72,10 @@ class PD_UFP_c
         uint8_t get_src_cap_count(void) { return protocol.power_data_obj_count; }
         uint8_t get_selected_position(void) { int Position = 1+ (PD_protocol_get_selected_power(&protocol)); return Position;}
         uint8_t get_cc_pin();
+        
+        // 监听功能方法
+        pd_monitor_t get_monitor_info(void) { return pd_monitor; }
+        void reset_monitor_info(void);
         // Set
         bool set_PPS(uint16_t PPS_voltage, uint8_t PPS_current);
         void set_power_option(enum PD_power_option_t power_option);
@@ -101,6 +120,9 @@ class PD_UFP_c
         uint16_t clock_ms(void);
         // Status logging
         virtual void status_log_event(uint8_t status, uint32_t * obj = 0) {}
+        // 监听功能数据
+        pd_monitor_t pd_monitor;
+        virtual void update_monitor_info(void);
 };
 
 
@@ -151,4 +173,3 @@ class PD_UFP_Log_c : public PD_UFP_c
 };
 
 #endif
-

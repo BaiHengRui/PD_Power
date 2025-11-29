@@ -85,6 +85,8 @@ void PD_UFP_Log_c::status_log_event(uint8_t status, uint32_t * obj)
     log->status = status;
     log->time = clock_ms();
     status_log_write++;
+    // 更新监听信息
+    update_monitor_info();
 }
 
 // Optimize RAM usage on AVR MCU by allocate format string in program memory
@@ -199,11 +201,12 @@ int PD_UFP_Log_c::status_log_readline(char * buffer, int maxlen)
         n = status_log_readline_src_cap(buffer, maxlen);
         break;
     case STATUS_LOG_POWER_READY: {
-        uint16_t v = ready_voltage;
-        uint16_t a = ready_current;
-        if (status_power == STATUS_POWER_TYP) {
+        uint16_t v = get_voltage();          // 使用getter方法访问
+        uint16_t a = get_current();          // 使用getter方法访问
+        status_power_t ps_status = get_ps_status(); // 使用getter方法访问
+        if (ps_status == STATUS_POWER_TYP) {
             LOG("%s%d.%02dV %d.%02dA supply ready\n", t, v / 20, (v * 5) % 100, a / 100, a % 100);
-        } else if (status_power == STATUS_POWER_PPS) {
+        } else if (ps_status == STATUS_POWER_PPS) {
             LOG("%sPPS %d.%02dV %d.%02dA supply ready\n", t, v / 50, (v * 2) % 100, a / 20, (a * 5) % 100);
         }
         break; }

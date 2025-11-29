@@ -61,6 +61,8 @@ PD_UFP_c::PD_UFP_c():
 {
     memset(&FUSB302, 0, sizeof(FUSB302_dev_t));
     memset(&protocol, 0, sizeof(PD_protocol_t));
+    // 初始化监听数据
+    memset(&pd_monitor, 0, sizeof(pd_monitor_t));
 }
 
 bool PD_UFP_c::enable_vbus_sense(bool enable)
@@ -326,6 +328,11 @@ void PD_UFP_c::status_power_ready(status_power_t status, uint16_t voltage, uint1
     ready_voltage = voltage;
     ready_current = current;
     status_power = status;
+    // 更新监听数据
+    pd_monitor.last_voltage = voltage;
+    pd_monitor.last_current = current;
+    pd_monitor.power_status = status;
+    pd_monitor.last_timestamp = clock_ms();
 }
 
 uint8_t PD_UFP_c::clock_prescaler = 1;
@@ -338,4 +345,27 @@ void PD_UFP_c::delay_ms(uint16_t ms)
 uint16_t PD_UFP_c::clock_ms(void)
 {
     return (uint16_t)millis() * clock_prescaler;
+}
+
+void PD_UFP_c::update_monitor_info(void)
+{
+    pd_monitor.packet_count++;
+    pd_monitor.last_voltage = get_voltage();      // 使用getter方法访问
+    pd_monitor.last_current = get_current();      // 使用getter方法访问
+    pd_monitor.last_timestamp = clock_ms();
+    pd_monitor.power_status = get_ps_status();    // 使用getter方法访问
+    
+    // 获取当前CC线状态
+    pd_monitor.cc_pin = get_cc_pin();
+    pd_monitor.cc_status = (pd_monitor.cc_pin != 0);
+    
+    // 获取PD状态信息
+    pd_monitor.src_cap_count = get_src_cap_count();
+    pd_monitor.selected_position = get_selected_position();
+}
+
+void PD_UFP_c::reset_monitor_info(void)
+{
+    memset(&pd_monitor, 0, sizeof(pd_monitor_t));
+    pd_monitor.last_timestamp = clock_ms();
 }

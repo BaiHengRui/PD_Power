@@ -1,4 +1,4 @@
-#include "HAL.h"
+#include "hal.h"
 #include "Config.h"
 
 HAL::Buzzer_status_t Buzzer;

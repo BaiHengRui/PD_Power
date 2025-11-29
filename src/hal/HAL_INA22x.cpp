@@ -1,4 +1,4 @@
-#include "HAL.h"
+#include "hal.h"
 
 INA226 ina(Wire);
 

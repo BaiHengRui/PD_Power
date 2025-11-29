@@ -1,4 +1,4 @@
-#include "HAL.h"
+#include "hal.h"
 #include "Config.h"
 
 void Key1LongClick(Button2&btn1);
@@ -32,7 +32,7 @@ void Key1LongClick(Button2&btn1){
     if (time1 >= time1max) {
         Now_App = 1; // 返回主界面
     }else if (time1 >= 300 && time1 < time1max) {
-        bottunStatus = "Button1 Pressed";
+        bottonStatus = "Button1 Pressed";
     }
 }
 
@@ -41,9 +41,9 @@ void Key2LongClick(Button2&btn2){
     unsigned int time2 = btn2.wasPressedFor();
     unsigned int time2max = 1000;
     if (time2 >= time2max) {
-        bottunStatus = "Button2 Long Pressed";
+        bottonStatus = "Button2 Long Pressed";
     }else if (time2 >= 300 && time2 < time2max) {
-        bottunStatus = "Button2 Pressed";
+        bottonStatus = "Button2 Pressed";
     }
 }
 
@@ -52,10 +52,10 @@ void Key3LongClick(Button2&btn3){
     unsigned int time3 = btn3.wasPressedFor();
     unsigned int time3max = 1000;
     if (time3 >= time3max) {
-        bottunStatus = "Button3 Long Pressed";
+        bottonStatus = "Button3 Long Pressed";
         Now_App = 12; // 进入OTA界面
     }else if (time3 >= 300 && time3 < time3max) {
-        bottunStatus = "Button3 Pressed";
+        bottonStatus = "Button3 Pressed";
     }
 }
 
@@ -64,9 +64,9 @@ void Key4LongClick(Button2&btn4){
     unsigned int time4 = btn4.wasPressedFor();
     unsigned int time4max = 1000;
     if (time4 >= time4max) {
-        bottunStatus = "Button4 Long Pressed";
+        bottonStatus = "Button4 Long Pressed";
     }else if (time4 >= 300 && time4 < time4max) {
-        bottunStatus = "Button4 Pressed";
+        bottonStatus = "Button4 Pressed";
     }
 }
 

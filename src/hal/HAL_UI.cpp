@@ -1,4 +1,4 @@
-#include "HAL.h"
+#include "hal.h"
 #include "Config.h"
 #include "Fonts/Font1_12.h"
 #include "Fonts/Font1_18.h"
@@ -257,7 +257,7 @@ void HAL::UI_Page1() {
     spr.setCursor(2, 10);
     spr.print("Button Test");
     spr.setCursor(2, 30);
-    spr.print("Status: " + bottunStatus);
+    spr.print("Status: " + bottonStatus);
 
     spr.unloadFont();
     spr.pushSprite(0, 0);
@@ -292,11 +292,11 @@ void HAL::UI_QuickCharge(){
     spr.deleteSprite();
 }
 
-// PD日志界面
-    const uint8_t MAX_LINES = 9;
-    const uint8_t LINE_HEIGHT = 20;
-    const uint8_t START_Y = 1;
-    String logBuffer[MAX_LINES];
+//PD 监听界面
+const uint8_t MAX_LINES = 9;
+const uint8_t LINE_HEIGHT = 20;
+const uint8_t START_Y = 1;
+String logBuffer[MAX_LINES];
 void HAL::UI_LOG(){
     spr.createSprite(240, 240);
     spr.fillScreen(TFT_BLACK);
@@ -306,7 +306,7 @@ void HAL::UI_LOG(){
     spr.fillRect(0,0,240,22,0X7EB1); // 绘制顶部边框
     spr.setTextColor(TFT_WHITE);
     spr.setCursor(5, 2); // 设置光标位置
-    spr.print("PDO Log"); // 显示标题
+    spr.print("PD Log Monitor"); // 显示标题
     spr.unloadFont();
     spr.loadFont(Font1_12);
     spr.setTextColor(TFT_WHITE);
@@ -328,9 +328,9 @@ void HAL::UI_LOG(){
         {
             logBuffer[i] = logBuffer[i + 1]; // 向上移动一行
         }
-        // logBuffer[MAX_LINES - 1] = String(buf); // 将最新的PD数据放在最后一行
+        // 使用新的监听功能
+        logBuffer[MAX_LINES - 1] = String(pdbuf); // 将最新的PD监听数据放在最后一行
     }
-    logBuffer[MAX_LINES - 1] = String(pdbuf); // 将最新的PD数据放在最后一行
     spr.fillRect(0,24,spr.width(), LINE_HEIGHT * MAX_LINES, TFT_BLACK); // 清除显示区域
     for (int i = 0; i < MAX_LINES; i++)
     {
@@ -340,13 +340,8 @@ void HAL::UI_LOG(){
 
     spr.setTextColor(0XA7FA);
     spr.setCursor(5, 220); // 设置光标位置
-    if (PD_Option == 0)
-    {
-        spr.print("FIX:" + String(PD_Voltage*0.05,2) + "V " + String(PD_Current*0.01,2) + "A");
-    }else if (PD_Option == 1)
-    {
-        spr.print("PPS:" + String(PD_Voltage*0.02,2) + "V " + String(PD_Current*0.05,2) + "A");
-    }
+    spr.print("Mode:" + HAL::PD_Monitor_GetPowerMode());
+    spr.print(" Pkt:" + String(HAL::PD_Monitor_GetPacketCount()));
     spr.print(" SRC:" + String(PD_Src_Cap_Count));
     spr.print(" POS:" + String(PD_Position));
     if (ccbus_used == 0)

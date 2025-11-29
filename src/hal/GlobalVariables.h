@@ -60,5 +60,5 @@ extern unsigned int frameCount;
 extern float currentFPS;
 
 
-extern String bottunStatus;
+extern String bottonStatus;
 #endif // GLOBAL_VARIABLES_H

@@ -1,4 +1,4 @@
-#include "HAL.h"
+#include "hal.h"
 #include "Config.h"
 
 void HAL::GPIO_Init() {
