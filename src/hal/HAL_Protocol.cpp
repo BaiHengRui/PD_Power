@@ -54,4 +54,4 @@ void HAL::QC_Run() {
     // For now, just a placeholder
     Serial.println("Quick Charge Run!");
 }
-//开学了没开发板，项目搁置一会，后续会把菜单完善
+//开学了，项目搁置一会，后续会把菜单完善
