@@ -340,8 +340,13 @@ void HAL::UI_LOG(){
 
     spr.setTextColor(0XA7FA);
     spr.setCursor(5, 220); // 设置光标位置
-    spr.print("Mode:" + HAL::PD_Monitor_GetPowerMode());
-    spr.print(" Pkt:" + String(HAL::PD_Monitor_GetPacketCount()));
+    if (PD_Option == 0)
+    {
+        spr.print("FIX:" + String(PD_Voltage*0.05,2) + "V " + String(PD_Current*0.01,2) + "A");
+    }else if (PD_Option == 1)
+    {
+        spr.print("PPS:" + String(PD_Voltage*0.02,2) + "V " + String(PD_Current*0.05,2) + "A");
+    }
     spr.print(" SRC:" + String(PD_Src_Cap_Count));
     spr.print(" POS:" + String(PD_Position));
     if (ccbus_used == 0)
