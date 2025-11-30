@@ -7,21 +7,22 @@ void HAL::PD_Init() {
     // PD_UFP.init_PPS(FUSB302_INT_PIN,PPS_V(PD_POWER_OPTION_MAX_VOLTAGE), PPS_A(PD_POWER_OPTION_MAX_CURRENT), PD_POWER_OPTION_MAX_POWER);
     // PD_UFP.init(FUSB302_INT_PIN,PD_POWER_OPTION_MAX_9V);
     // PD_UFP.init_PPS(FUSB302_INT_PIN,PPS_V(20),PPS_A(5));
+    PD_UFP.init_Bridge(FUSB302_INT_PIN);
     PD_UFP.enable_vbus_sense(0); // 关闭 VBUS 检测
     Serial.println("FUSB302 PD Sink Init!");
 }
 
 void HAL::PD_Run() {
-    PD_UFP.run();
+    PD_UFP.run_Bridge();
     static long PDtimeMillis = millis(); 
     if (millis() - PDtimeMillis >= 200) { // 200ms
         PDtimeMillis = millis();
-        PD_UFP.status_log_readline(pdbuf, sizeof(pdbuf) - 1);
+        PD_UFP.status_bridge_log_readline(pdbuf, sizeof(pdbuf) - 1);
         // Serial.printf(buf);
     }
     
-    PD_Voltage = PD_UFP.get_voltage();
-    PD_Current = PD_UFP.get_current();
+    PD_Voltage = PD_UFP.get_bridge_voltage();
+    PD_Current = PD_UFP.get_bridge_current();
     
     status_power_t status = PD_UFP.get_ps_status();
     if (status == STATUS_POWER_TYP) {
@@ -35,9 +36,9 @@ void HAL::PD_Run() {
         PD_Voltage = 0;
         PD_Current = 0;
     }
-    PD_Src_Cap_Count = PD_UFP.get_src_cap_count(); // 获取源能力计数
-    PD_Position = PD_UFP.get_selected_position(); // 获取PD位置
-    ccbus_used = PD_UFP.get_cc_pin(); // 获取CC线状态，0/NULL 1/CC1 2/CC2
+    PD_Src_Cap_Count = PD_UFP.get_bridge_src_cap_count(); // 获取源能力计数
+    PD_Position = PD_UFP.get_bridge_selected_position(); // 获取PD位置
+    ccbus_used = PD_UFP.get_bridge_cc_pin(); // 获取CC线状态，0/NULL 1/CC1 2/CC2
 }
 
 void HAL::QC_Init() {

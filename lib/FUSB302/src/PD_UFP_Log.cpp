@@ -39,6 +39,7 @@ enum {
 #define STATUS_LOG_OBJ_MASK     (sizeof(status_log_obj) / sizeof(status_log_obj[0]) - 1)
 
 PD_UFP_Log_c::PD_UFP_Log_c(pd_log_level_t log_level):
+    PD_UFP_c(),  // 调用基类构造函数
     status_log_write(0),
     status_log_read(0),
     status_log_counter(0),
@@ -46,7 +47,10 @@ PD_UFP_Log_c::PD_UFP_Log_c(pd_log_level_t log_level):
     status_log_obj_write(0),
     status_log_level(log_level)
 {
-
+    // 初始化Bridge相关变量
+    bridge_mode_enabled = false;
+    bridge_log_index = 0;
+    memset(bridge_status_buffer, 0, sizeof(bridge_status_buffer));
 }
 
 uint8_t PD_UFP_Log_c::status_log_obj_add(uint16_t header, uint32_t * obj)
@@ -244,5 +248,66 @@ void PD_UFP_Log_c::print_status(HardwareSerial & serial)
             serial.print(buf);
         }
     }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Bridge功能方法实现
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void PD_UFP_Log_c::init_Bridge(uint8_t int_pin)
+{
+    // 调用父类初始化
+    PD_UFP_c::init_Bridge(int_pin);
+    
+    // 初始化Log相关Bridge功能
+    memset(bridge_status_buffer, 0, sizeof(bridge_status_buffer));
+    snprintf(bridge_status_buffer, sizeof(bridge_status_buffer),
+             "Bridge Mode Init - FUSB302 INT Pin: %d\r\n", int_pin);
+    
+    // 添加初始化日志
+    status_log_event(STATUS_LOG_DEV, NULL);
+}
+
+void PD_UFP_Log_c::run_Bridge(void)
+{
+    // 调用父类运行
+    PD_UFP_c::run_Bridge();
+    
+    // Log级别的Bridge状态更新
+    if (bridge_mode_enabled) {
+        // 更新详细状态信息
+        snprintf(bridge_status_buffer, sizeof(bridge_status_buffer),
+                 "PD Status: %s | V: %.2fV | I: %.2fA | Packets: %d | CC: %d\r\n",
+                 get_bridge_power_mode().c_str(),
+                 get_bridge_voltage(), 
+                 get_bridge_current(),
+                 get_bridge_packet_count(),
+                 pd_monitor.cc_pin);
+    }
+}
+
+int PD_UFP_Log_c::status_bridge_log_readline(char *buffer, int maxlen)
+{
+    if (!buffer || maxlen <= 0) return 0;
+    
+    int len = 0;
+    
+    // 首先返回父类的基本状态信息
+    len = PD_UFP_c::status_bridge_log_readline(buffer, maxlen);
+    
+    // 然后添加Log级别的详细信息
+    if (len < maxlen - 1 && bridge_mode_enabled) {
+        int remaining = maxlen - len - 1; // 留一个字符给终止符
+        if (remaining > 0) {
+            buffer[len] = '\n'; // 添加换行符分隔
+            len++;
+            int log_len = snprintf(buffer + len, remaining, "Status: %s", bridge_status_buffer);
+            if (log_len > 0 && log_len < remaining) {
+                len += log_len;
+            }
+        }
+    }
+    
+    return len;
 }
 

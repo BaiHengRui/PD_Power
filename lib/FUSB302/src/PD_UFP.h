@@ -76,6 +76,26 @@ class PD_UFP_c
         // 监听功能方法
         pd_monitor_t get_monitor_info(void) { return pd_monitor; }
         void reset_monitor_info(void);
+        
+        // 监听函数 - 返回实际数值
+        uint16_t get_bridge_voltage(void);  // 返回float类型电压值（V）
+        uint16_t get_bridge_current(void);  // 返回float类型电流值（A）
+        String get_bridge_power_mode(void);  // 返回电源模式："FIX"或"PPS"
+        uint8_t get_bridge_packet_count(void);   // 返回PD包数量
+        
+        // 新的Bridge监听函数
+        uint8_t get_bridge_src_cap_count(void);      // 获取源能力计数
+        uint8_t get_bridge_selected_position(void);  // 获取PD位置
+        uint8_t get_bridge_cc_pin(void);             // 获取CC线状态
+        uint32_t get_bridge_good_crc_count(void);    // 获取成功CRC计数
+        uint32_t get_bridge_reject_count(void);      // 获取拒绝计数
+        bool get_bridge_cc_status(void);             // 获取CC线连接状态
+        void reset_bridge_monitor(void);             // 重置监听数据
+        
+        // Bridge功能方法
+        void init_Bridge(uint8_t int_pin);
+        void run_Bridge(void);
+        int status_bridge_log_readline(char *buffer, int maxlen);
         // Set
         bool set_PPS(uint16_t PPS_voltage, uint8_t PPS_current);
         void set_power_option(enum PD_power_option_t power_option);
@@ -120,9 +140,17 @@ class PD_UFP_c
         uint16_t clock_ms(void);
         // Status logging
         virtual void status_log_event(uint8_t status, uint32_t * obj = 0) {}
-        // 监听功能数据
+            // 监听功能数据
         pd_monitor_t pd_monitor;
         virtual void update_monitor_info(void);
+        
+    // Bridge功能数据
+    bool bridge_mode_enabled;
+    char bridge_log_buffer[256];
+    uint16_t bridge_log_index;
+    
+    // Log专用Bridge功能数据
+    char bridge_status_buffer[128];
 };
 
 
@@ -151,6 +179,11 @@ class PD_UFP_Log_c : public PD_UFP_c
         void print_status(HardwareSerial & serial);
         // Get
         int status_log_readline(char * buffer, int maxlen);
+        
+        // Bridge功能方法（继承并重载）
+        void init_Bridge(uint8_t int_pin);
+        void run_Bridge(void);
+        int status_bridge_log_readline(char *buffer, int maxlen);
 
     protected:
         int status_log_readline_msg(char * buffer, int maxlen, status_log_t * log);
