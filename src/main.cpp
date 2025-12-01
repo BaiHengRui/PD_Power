@@ -64,7 +64,7 @@ void buttonTask(void *pvParameters){
 void setup() {
   // put your setup code here, to run once:
   setCpuFrequencyMhz(240); //Full
-  esp_task_wdt_init(10,false); //watch dog 10s time out
+  esp_task_wdt_init(3,false); //watch dog 3s time out
   HAL::Sys_Init();
   // HAL::LCD_Light_Updat(1,0);
   Now_App = 5;
