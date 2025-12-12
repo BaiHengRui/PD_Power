@@ -1,14 +1,14 @@
 #include "hal.h"
 #include "Config.h"
 
-PD_UFP_Log_c PD_UFP(PD_LOG_LEVEL_VERBOSE);
+PD_UFP_Log_c PD_UFP(PD_LOG_LEVEL_INFO,PD_BRIDGE_LOG_LEVEL_DETAILED);
 
 void HAL::PD_Init() {
     // PD_UFP.init_PPS(FUSB302_INT_PIN,PPS_V(PD_POWER_OPTION_MAX_VOLTAGE), PPS_A(PD_POWER_OPTION_MAX_CURRENT), PD_POWER_OPTION_MAX_POWER);
     // PD_UFP.init_PPS(FUSB302_INT_PIN,PPS_V(20),PPS_A(5));
-    PD_UFP.init_Bridge(FUSB302_INT_PIN);
     PD_UFP.enable_vbus_sense(0); // 关闭 VBUS 检测
-    Serial.println("FUSB302 PD Sink Init!");
+    PD_UFP.init_Bridge(FUSB302_INT_PIN); // 使用Bridge模式进行监听
+    Serial.println("FUSB302 PD Bridge Init!");
 }
 
 void HAL::PD_Run() {
@@ -35,6 +35,8 @@ void HAL::PD_Run() {
         PD_Voltage = 0;
         PD_Current = 0;
     }
+    
+    // 更新其他状态信息
     PD_Src_Cap_Count = PD_UFP.get_bridge_src_cap_count(); // 获取源能力计数
     PD_Position = PD_UFP.get_bridge_selected_position(); // 获取PD位置
     ccbus_used = PD_UFP.get_bridge_cc_pin(); // 获取CC线状态，0/NULL 1/CC1 2/CC2

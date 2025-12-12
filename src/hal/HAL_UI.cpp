@@ -293,8 +293,8 @@ void HAL::UI_QuickCharge(){
 }
 
 //PD 监听界面
-const uint8_t MAX_LINES = 9;
-const uint8_t LINE_HEIGHT = 20;
+const uint8_t MAX_LINES = 3;
+const uint8_t LINE_HEIGHT = 60;
 const uint8_t START_Y = 1;
 String logBuffer[MAX_LINES];
 void HAL::UI_LOG(){
@@ -342,10 +342,12 @@ void HAL::UI_LOG(){
     spr.setCursor(5, 220); // 设置光标位置
     if (PD_Option == 0)
     {
-        spr.print("FIX:" + String(PD_Voltage*0.05,2) + "V " + String(PD_Current*0.01,2) + "A");
+        // spr.print("FIX:" + String(PD_Voltage*0.05,2) + "V " + String(PD_Current*0.01,2) + "A");
+        spr.print(" FIX:" + String(PD_Voltage,2) + "V " + String(PD_Current,2) + "A");
     }else if (PD_Option == 1)
     {
-        spr.print("PPS:" + String(PD_Voltage*0.02,2) + "V " + String(PD_Current*0.05,2) + "A");
+        // spr.print("PPS:" + String(PD_Voltage*0.02,2) + "V " + String(PD_Current*0.05,2) + "A");
+        spr.print(" PPS:" + String(PD_Voltage,2) + "V " + String(PD_Current,2) + "A");
     }
     spr.print(" SRC:" + String(PD_Src_Cap_Count));
     spr.print(" POS:" + String(PD_Position));

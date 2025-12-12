@@ -32,6 +32,12 @@ enum {
 };
 typedef uint8_t status_power_t;
 
+// Bridge日志级别枚举 - 必须在类定义之前声明
+enum pd_bridge_log_level_t {
+    PD_BRIDGE_LOG_LEVEL_BASIC,      // 基础信息
+    PD_BRIDGE_LOG_LEVEL_DETAILED    // 详细信息
+};
+
 // 监听功能数据结构
 struct pd_monitor_t {
     uint32_t packet_count;          // 数据包计数
@@ -78,10 +84,10 @@ class PD_UFP_c
         void reset_monitor_info(void);
         
         // 监听函数 - 返回实际数值
-        uint16_t get_bridge_voltage(void);  // 返回float类型电压值（V）
-        uint16_t get_bridge_current(void);  // 返回float类型电流值（A）
+        float get_bridge_voltage(void);  // 返回float类型电压值（V）
+        float get_bridge_current(void);  // 返回float类型电流值（A）
         String get_bridge_power_mode(void);  // 返回电源模式："FIX"或"PPS"
-        uint8_t get_bridge_packet_count(void);   // 返回PD包数量
+        uint32_t get_bridge_packet_count(void);   // 返回PD包数量
         
         // 新的Bridge监听函数
         uint8_t get_bridge_src_cap_count(void);      // 获取源能力计数
@@ -91,6 +97,15 @@ class PD_UFP_c
         uint32_t get_bridge_reject_count(void);      // 获取拒绝计数
         bool get_bridge_cc_status(void);             // 获取CC线连接状态
         void reset_bridge_monitor(void);             // 重置监听数据
+        void set_bridge_log_level(pd_bridge_log_level_t level); // 设置Bridge日志级别
+        
+        // 监听模式下的电源信息获取
+        String get_bridge_power_info_string(void);   // 获取电源信息的字符串描述
+        uint32_t get_bridge_max_power(void);         // 获取最大功率（mW）
+        uint16_t get_bridge_voltage_range_min(void); // 获取最小电压（mV）
+        uint16_t get_bridge_voltage_range_max(void); // 获取最大电压（mV）
+        uint16_t get_bridge_current_limit(void);     // 获取电流限制（mA）
+        bool is_bridge_pps_capable(void);            // 检查是否支持PPS
         
         // Bridge功能方法
         void init_Bridge(uint8_t int_pin);
@@ -148,6 +163,7 @@ class PD_UFP_c
     bool bridge_mode_enabled;
     char bridge_log_buffer[256];
     uint16_t bridge_log_index;
+    pd_bridge_log_level_t bridge_log_level;  // Bridge日志级别
     
     // Log专用Bridge功能数据
     char bridge_status_buffer[128];
@@ -173,7 +189,8 @@ enum pd_log_level_t {
 class PD_UFP_Log_c : public PD_UFP_c
 {
     public:
-        PD_UFP_Log_c(pd_log_level_t log_level = PD_LOG_LEVEL_INFO);
+        PD_UFP_Log_c(pd_log_level_t log_level = PD_LOG_LEVEL_INFO, 
+                     pd_bridge_log_level_t bridge_log_level = (pd_bridge_log_level_t)1); // 1 = DETAILED
         // Task
         //void print_status(Serial_ & serial);
         void print_status(HardwareSerial & serial);
@@ -201,6 +218,7 @@ class PD_UFP_Log_c : public PD_UFP_c
         uint8_t status_log_obj_write;
         // state variables
         pd_log_level_t status_log_level;
+        pd_bridge_log_level_t bridge_log_level;
         uint8_t status_log_counter;        
         char status_log_time[8];
 };

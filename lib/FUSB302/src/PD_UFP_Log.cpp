@@ -38,19 +38,20 @@ enum {
 #define STATUS_LOG_MASK         (sizeof(status_log) / sizeof(status_log[0]) - 1)
 #define STATUS_LOG_OBJ_MASK     (sizeof(status_log_obj) / sizeof(status_log_obj[0]) - 1)
 
-PD_UFP_Log_c::PD_UFP_Log_c(pd_log_level_t log_level):
+PD_UFP_Log_c::PD_UFP_Log_c(pd_log_level_t log_level, pd_bridge_log_level_t bridge_log_level):
     PD_UFP_c(),  // 调用基类构造函数
     status_log_write(0),
     status_log_read(0),
     status_log_counter(0),
     status_log_obj_read(0),
     status_log_obj_write(0),
-    status_log_level(log_level)
+    status_log_level(log_level),
+    bridge_log_level(bridge_log_level)
 {
     // 初始化Bridge相关变量
     bridge_mode_enabled = false;
     bridge_log_index = 0;
-    memset(bridge_status_buffer, 0, sizeof(bridge_status_buffer));
+    // bridge_status_buffer在基类中声明，这里不需要重复初始化
 }
 
 uint8_t PD_UFP_Log_c::status_log_obj_add(uint16_t header, uint32_t * obj)
@@ -97,12 +98,13 @@ void PD_UFP_Log_c::status_log_event(uint8_t status, uint32_t * obj)
 #if defined(__AVR__)
 #include <avr/pgmspace.h>
 #define SNPRINTF snprintf_P
+#define MY_PSTR(str) PSTR(str)
 #else
 #define SNPRINTF snprintf
-#define PSTR(str) str
+#define MY_PSTR(str) str
 #endif
 
-#define LOG(format, ...) do { n = SNPRINTF(buffer, maxlen, PSTR(format), ## __VA_ARGS__); } while (0)
+#define LOG(format, ...) do { n = SNPRINTF(buffer, maxlen, MY_PSTR(format), ## __VA_ARGS__); } while (0)
 
 int PD_UFP_Log_c::status_log_readline_msg(char * buffer, int maxlen, status_log_t * log)
 {
@@ -259,6 +261,8 @@ void PD_UFP_Log_c::init_Bridge(uint8_t int_pin)
     // 调用父类初始化
     PD_UFP_c::init_Bridge(int_pin);
     
+    // bridge_log_level已经在父类中设置为详细模式，这里保持不变
+    
     // 初始化Log相关Bridge功能
     memset(bridge_status_buffer, 0, sizeof(bridge_status_buffer));
     snprintf(bridge_status_buffer, sizeof(bridge_status_buffer),
@@ -275,14 +279,22 @@ void PD_UFP_Log_c::run_Bridge(void)
     
     // Log级别的Bridge状态更新
     if (bridge_mode_enabled) {
+        // 安全获取电源模式字符串
+        String power_mode = get_bridge_power_mode();
+        const char* mode_str = power_mode.c_str();
+        
+        // 使用安全默认值
+        uint32_t packet_count = (get_bridge_packet_count() > 10000) ? 0 : get_bridge_packet_count();
+        uint8_t cc_pin = (pd_monitor.cc_pin > 10) ? 0 : pd_monitor.cc_pin;
+        
         // 更新详细状态信息
         snprintf(bridge_status_buffer, sizeof(bridge_status_buffer),
-                 "PD Status: %s | V: %.2fV | I: %.2fA | Packets: %d | CC: %d\r\n",
-                 get_bridge_power_mode().c_str(),
+                 "PD Status: %s | V: %.2fV | I: %.2fA | Packets: %u | CC: %d\r\n",
+                 mode_str,
                  get_bridge_voltage(), 
                  get_bridge_current(),
-                 get_bridge_packet_count(),
-                 pd_monitor.cc_pin);
+                 packet_count,
+                 cc_pin);
     }
 }
 
@@ -295,15 +307,34 @@ int PD_UFP_Log_c::status_bridge_log_readline(char *buffer, int maxlen)
     // 首先返回父类的基本状态信息
     len = PD_UFP_c::status_bridge_log_readline(buffer, maxlen);
     
-    // 然后添加Log级别的详细信息
+    // 根据Bridge日志级别添加不同详细程度的信息
     if (len < maxlen - 1 && bridge_mode_enabled) {
         int remaining = maxlen - len - 1; // 留一个字符给终止符
         if (remaining > 0) {
             buffer[len] = '\n'; // 添加换行符分隔
             len++;
-            int log_len = snprintf(buffer + len, remaining, "Status: %s", bridge_status_buffer);
-            if (log_len > 0 && log_len < remaining) {
-                len += log_len;
+            
+            // 安全检查bridge_status_buffer
+            const char* status_str = (bridge_status_buffer[0] != '\0') ? bridge_status_buffer : "Unknown";
+            
+            if (bridge_log_level >= (pd_bridge_log_level_t)1) { // 1 = DETAILED
+                // 详细模式：包含更多调试信息，使用安全默认值
+                uint16_t retry_count = (get_src_cap_retry_count > 10) ? 0 : get_src_cap_retry_count;
+                uint32_t crc_count = (pd_monitor.good_crc_count > 100000) ? 0 : pd_monitor.good_crc_count;
+                
+                int log_len = snprintf(buffer + len, remaining, 
+                    "Bridge-Detail: %s | Retry:%d CRC:%lu Init:%s",
+                    status_str, retry_count, crc_count,
+                    status_initialized ? "OK" : "ERROR");
+                if (log_len > 0 && log_len < remaining) {
+                    len += log_len;
+                }
+            } else {
+                // 基础模式：只显示基本状态信息
+                int log_len = snprintf(buffer + len, remaining, "Bridge: %s", status_str);
+                if (log_len > 0 && log_len < remaining) {
+                    len += log_len;
+                }
             }
         }
     }
