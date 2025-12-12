@@ -90,10 +90,10 @@ void HAL::UI_Main(){
     spr.println("  SET:");
     if (PD_Option == 0)
     {
-        spr.println("  FIX: " + String(PD_Voltage*0.05,2) + "V " + String(PD_Current*0.01,2) + "A");
+        spr.println("  FIX: " + String(PD_Voltage, 2) + "V " + String(PD_Current, 2) + "A");
     }else if (PD_Option == 1)
     {
-        spr.println("  PPS: " + String(PD_Voltage*0.02,2) + "V " + String(PD_Current*0.05,2) + "A");
+        spr.println("  PPS: " + String(PD_Voltage, 2) + "V " + String(PD_Current, 2) + "A");
     }
     spr.print("  SRC:" + String(PD_Src_Cap_Count));
     spr.print("  POS:" + String(PD_Position));
@@ -295,7 +295,7 @@ void HAL::UI_QuickCharge(){
 //PD 监听界面
 const uint8_t MAX_LINES = 3;
 const uint8_t LINE_HEIGHT = 60;
-const uint8_t START_Y = 1;
+const uint8_t START_Y = 2;
 String logBuffer[MAX_LINES];
 void HAL::UI_LOG(){
     spr.createSprite(240, 240);
@@ -328,7 +328,6 @@ void HAL::UI_LOG(){
         {
             logBuffer[i] = logBuffer[i + 1]; // 向上移动一行
         }
-        // 使用新的监听功能
         logBuffer[MAX_LINES - 1] = String(pdbuf); // 将最新的PD监听数据放在最后一行
     }
     spr.fillRect(0,24,spr.width(), LINE_HEIGHT * MAX_LINES, TFT_BLACK); // 清除显示区域

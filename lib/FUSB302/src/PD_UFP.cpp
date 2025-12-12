@@ -1,9 +1,9 @@
-
 /**
- * PD_UFP.h
+ * PD_UFP.cpp
  *
  *      Author: Ryan Ma
  *      Edited: Kai Liebich
+ *      v1.2: Bridge模式完整修复版本
  *
  * Minimalist USB PD Ardunio Library for PD Micro board
  * Only support UFP(device) sink only functionality
@@ -11,8 +11,15 @@
  *
  * Support PD3.0 PPS
  * 
+ * v1.2修复内容：
+ * - 完全修复Bridge模式循环握手问题
+ * - 修复Request PDO解析逻辑，正确从Object position查找Source PDO
+ * - 修复PPS模式电压电流解析，直接从Request获取当前值
+ * - 优化消息处理和状态更新逻辑
+ * - 提供详细的PD消息监控和清晰的日志输出
+ * - 强制禁用所有PD握手协议调用
  */
- 
+
 #include <stdint.h>
 #include <string.h>
 
@@ -38,7 +45,6 @@ enum {
     STATUS_LOG_LOAD_SW_OFF,
 };
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // PD_UFP_c
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -63,7 +69,7 @@ PD_UFP_c::PD_UFP_c():
 {
     memset(&FUSB302, 0, sizeof(FUSB302_dev_t));
     memset(&protocol, 0, sizeof(PD_protocol_t));
-    // 初始化监听数据
+    // v1.2修复：初始化监听数据
     memset(&pd_monitor, 0, sizeof(pd_monitor_t));
 }
 
@@ -108,6 +114,12 @@ void PD_UFP_c::init_PPS(uint8_t int_pin, uint16_t PPS_voltage, uint8_t PPS_curre
 
 void PD_UFP_c::run(void)
 {
+    // v1.2修复：Bridge模式下不调用run()函数，只使用run_Bridge()
+    if (bridge_mode_enabled) {
+        Serial.println("[RUN] Bridge模式：使用run_Bridge()而不是run()");
+        return;
+    }
+    
     if (timer() || digitalRead(int_pin) == 0) {
         FUSB302_event_t FUSB302_events = 0;
         for (uint8_t i = 0; i < 3 && FUSB302_alert(&FUSB302, &FUSB302_events) != FUSB302_SUCCESS; i++) {}
@@ -132,7 +144,6 @@ uint8_t PD_UFP_c::get_cc_pin() {
         return 0;
     }
 }
-
 
 bool PD_UFP_c::set_PPS(uint16_t PPS_voltage, uint8_t PPS_current)
 {
@@ -189,7 +200,13 @@ FUSB302_ret_t PD_UFP_c::FUSB302_delay_ms(uint32_t t)
 }
 
 void PD_UFP_c::handle_protocol_event(PD_protocol_event_t events)
-{    
+{
+    // v1.2修复：Bridge模式下完全禁用handle_protocol_event
+    if (bridge_mode_enabled) {
+        Serial.println("[PROTOCOL] Bridge模式：禁用协议事件处理");
+        return;
+    }
+    
     if (events & PD_PROTOCOL_EVENT_SRC_CAP) {
         wait_src_cap = 0;
         get_src_cap_retry_count = 0;
@@ -204,6 +221,7 @@ void PD_UFP_c::handle_protocol_event(PD_protocol_event_t events)
         }
     }    
     if (events & PD_PROTOCOL_EVENT_PS_RDY) {
+        // 非Bridge模式：正常处理PS_RDY事件
         PD_power_info_t p;
         uint8_t i, selected_power = PD_protocol_get_selected_power(&protocol);
         PD_protocol_get_power_info(&protocol, selected_power, &p);
@@ -234,7 +252,12 @@ void PD_UFP_c::handle_protocol_event(PD_protocol_event_t events)
 void PD_UFP_c::handle_FUSB302_event(FUSB302_event_t events)
 {
     if (events & FUSB302_EVENT_DETACHED) {
-        PD_protocol_reset(&protocol);
+        // v1.2修复：Bridge模式下不调用PD_protocol_reset
+        if (!bridge_mode_enabled) {
+            PD_protocol_reset(&protocol);
+        } else {
+            Serial.println("[BRIDGE] Bridge模式：断开连接，不重置PD协议");
+        }
         
         // Bridge模式下的特殊处理
         if (bridge_mode_enabled) {
@@ -246,7 +269,14 @@ void PD_UFP_c::handle_FUSB302_event(FUSB302_event_t events)
     if (events & FUSB302_EVENT_ATTACHED) {
         uint8_t cc1 = 0, cc2 = 0, cc = 0;
         FUSB302_get_cc(&FUSB302, &cc1, &cc2);
-        PD_protocol_reset(&protocol);
+        
+        // v1.2修复：Bridge模式下不调用PD_protocol_reset
+        if (!bridge_mode_enabled) {
+            PD_protocol_reset(&protocol);
+        } else {
+            Serial.println("[BRIDGE] Bridge模式：连接检测，不重置PD协议");
+        }
+        
         if (cc1 && cc2 == 0) {
             cc = cc1;
         } else if (cc2 && cc1 == 0) {
@@ -254,9 +284,17 @@ void PD_UFP_c::handle_FUSB302_event(FUSB302_event_t events)
         }
         /* TODO: handle no cc detected error */
         if (cc > 1) {
-            wait_src_cap = 1;
+            if (!bridge_mode_enabled) {
+                wait_src_cap = 1;
+            } else {
+                Serial.println("[BRIDGE] Bridge模式：不设置wait_src_cap");
+            }
         } else {
-            set_default_power();
+            if (!bridge_mode_enabled) {
+                set_default_power();
+            } else {
+                Serial.println("[BRIDGE] Bridge模式：不调用set_default_power");
+            }
         }
         
         // Bridge模式下的CC状态更新
@@ -268,47 +306,63 @@ void PD_UFP_c::handle_FUSB302_event(FUSB302_event_t events)
         status_log_event(STATUS_LOG_CC);
     }
     if (events & FUSB302_EVENT_RX_SOP) {
-        PD_protocol_event_t protocol_event = 0;
         uint16_t header;
         uint32_t obj[7];
         FUSB302_get_message(&FUSB302, &header, obj);
-        PD_protocol_handle_msg(&protocol, header, obj, &protocol_event);
         
-        // Bridge模式下的数据包计数
+        // v1.2修复：Bridge模式下的数据包计数
         if (bridge_mode_enabled) {
             pd_monitor.packet_count++;
         }
         
-        status_log_event(STATUS_LOG_MSG_RX, obj);
-        if (protocol_event) {
-            handle_protocol_event(protocol_event);
+        // v1.2修复：Bridge模式下完全不调用任何PD协议函数
+        if (!bridge_mode_enabled) {
+            // 非Bridge模式：正常PD协议处理
+            PD_protocol_event_t protocol_event = 0;
+            PD_protocol_handle_msg(&protocol, header, obj, &protocol_event);
+            status_log_event(STATUS_LOG_MSG_RX, obj);
+            if (protocol_event) {
+                handle_protocol_event(protocol_event);
+            }
+        } else {
+            // Bridge模式：只记录消息，完全不进行协议处理
+            Serial.println("[BRIDGE] Bridge模式：不处理PD协议，只记录消息");
+            status_log_event(STATUS_LOG_MSG_RX, obj);
         }
     }
     if (events & FUSB302_EVENT_GOOD_CRC_SENT) {
-        uint16_t header;
-        uint32_t obj[7];
-        delay_ms(2);  /* Delay respond in case there are retry messages */
-        if (PD_protocol_respond(&protocol, &header, obj)) {
-            status_log_event(STATUS_LOG_MSG_TX, obj);
-            FUSB302_tx_sop(&FUSB302, header, obj);
-        }
-        
-        // Bridge模式下的Good CRC计数
+        // v1.2修复：Bridge模式下的Good CRC计数
         if (bridge_mode_enabled) {
             pd_monitor.good_crc_count++;
+            Serial.println("[BRIDGE] Bridge模式：不发送PD响应，只统计Good CRC");
+        } else {
+            // 非Bridge模式：正常PD协议响应
+            uint16_t header;
+            uint32_t obj[7];
+            delay_ms(2);  /* Delay respond in case there are retry messages */
+            if (PD_protocol_respond(&protocol, &header, obj)) {
+                status_log_event(STATUS_LOG_MSG_TX, obj);
+                FUSB302_tx_sop(&FUSB302, header, obj);
+            }
         }
     }
 }
 
 bool PD_UFP_c::timer(void)
 {
+    // v1.2修复：Bridge模式下完全禁用timer功能
+    if (bridge_mode_enabled) {
+        Serial.println("[TIMER] Bridge模式：禁用timer功能");
+        return false;
+    }
+    
     uint16_t t = clock_ms();
     if (wait_src_cap && t - time_wait_src_cap > t_TypeCSinkWaitCap) {
         time_wait_src_cap = t;
         if (get_src_cap_retry_count < 3) {
             uint16_t header;
             get_src_cap_retry_count += 1;
-            /* Try to request soruce capabilities message (will not cause power cycle VBUS) */
+            /* Try to request source capabilities message (will not cause power cycle VBUS) */
             PD_protocol_create_get_src_cap(&protocol, &header);
             status_log_event(STATUS_LOG_MSG_TX);
             FUSB302_tx_sop(&FUSB302, header, 0);
@@ -351,38 +405,42 @@ void PD_UFP_c::set_default_power(void)
 
 void PD_UFP_c::status_power_ready(status_power_t status, uint16_t voltage, uint16_t current)
 {
-    ready_voltage = voltage;
-    ready_current = current;
-    status_power = status;
-    
-    // Bridge模式下的单位转换修复
+    // v1.2修复：Bridge模式下不调用status_power_ready，避免协议状态更新
     if (bridge_mode_enabled) {
-        // Bridge模式下，voltage和current是原始单位，需要转换为mV和mA
+        Serial.println("[STATUS] Bridge模式：不调用status_power_ready，只更新监听数据");
+        
+        // 只更新Bridge监听数据，不更新协议状态
         if (status == STATUS_POWER_PPS) {
             // PPS模式：ready_voltage是20mV单位，ready_current是50mA单位
-            // voltage是20mV单位的原始值，current是50mA单位的原始值
             pd_monitor.last_voltage = voltage * 20;  // 20mV单位转换为mV
             pd_monitor.last_current = current * 50;  // 50mA单位转换为mA
         } else {
             // Fixed/Variable/Battery模式：ready_voltage是50mV单位，ready_current是10mA单位
-            // voltage是50mV单位的原始值，current是10mA单位的原始值
             pd_monitor.last_voltage = voltage * 50;  // 50mV单位转换为mV
             pd_monitor.last_current = current * 10;  // 10mA单位转换为mA
         }
-    } else {
-        // 非Bridge模式：直接更新监听数据
-        pd_monitor.last_voltage = voltage;
-        pd_monitor.last_current = current;
+        
+        pd_monitor.power_status = status;
+        pd_monitor.last_timestamp = clock_ms();
+        
+        Serial.printf("[STATUS] Bridge监听数据更新: status=%d, V_raw=%u, I_raw=%u, V_mV=%umV, I_mA=%umA\n",
+                      status, voltage, current, pd_monitor.last_voltage, pd_monitor.last_current);
+        return;
     }
     
+    // 非Bridge模式：正常协议处理
+    ready_voltage = voltage;
+    ready_current = current;
+    status_power = status;
+    
+    // 非Bridge模式：直接更新监听数据
+    pd_monitor.last_voltage = voltage;
+    pd_monitor.last_current = current;
     pd_monitor.power_status = status;
     pd_monitor.last_timestamp = clock_ms();
     
-    // 调试输出
-    if (bridge_mode_enabled) {
-        Serial.printf("[STATUS] Bridge模式状态更新: status=%d, V_raw=%u, I_raw=%u, V_mV=%umV, I_mA=%umA\n",
-                      status, voltage, current, pd_monitor.last_voltage, pd_monitor.last_current);
-    }
+    Serial.printf("[STATUS] 非Bridge模式状态更新: status=%d, V=%umV, I=%umA\n",
+                  status, voltage, current);
 }
 
 uint8_t PD_UFP_c::clock_prescaler = 1;
@@ -397,22 +455,16 @@ uint16_t PD_UFP_c::clock_ms(void)
     return (uint16_t)millis() * clock_prescaler;
 }
 
-    void PD_UFP_c::update_monitor_info(void)
+void PD_UFP_c::update_monitor_info(void)
 {
     // 更新时间戳
     pd_monitor.last_timestamp = clock_ms();
     
     if (bridge_mode_enabled) {
-        // Bridge模式：只更新时间戳，不访问协议状态
+        // v1.2修复：Bridge模式：只更新时间戳，不访问协议状态
         // 所有状态更新都在run_Bridge()中的事件处理里完成
         
-        // Bridge模式：确保内部状态与监听数据同步
-        // Bridge模式下的状态已在status_power_ready()中正确更新
-        
-        // 如果CC已连接但还没有PDO信息，保持当前状态
-        // 不主动修改power_status，避免与PDO解析结果冲突
-        
-        // Serial.printf("[UPDATE] Bridge模式: 保持当前状态\n");
+        Serial.println("[UPDATE] Bridge模式：纯监听状态更新，不涉及PD协议");
     } else {
         // 非Bridge模式：正常更新所有信息
         Serial.printf("[UPDATE] 非Bridge模式调用get_ps_status(): %d\n", get_ps_status());
@@ -425,20 +477,9 @@ uint16_t PD_UFP_c::clock_ms(void)
         pd_monitor.selected_position = get_selected_position();
     }
     
-    // 调试输出：显示update_monitor_info的结果（仅在状态变化时）
-    static status_power_t last_power_status = STATUS_POWER_NA;
-    static uint16_t last_voltage = 0;
-    static uint16_t last_current = 0;
-    
-    if (bridge_mode_enabled && 
-        (last_power_status != pd_monitor.power_status || 
-         last_voltage != pd_monitor.last_voltage || 
-         last_current != pd_monitor.last_current)) {
-        Serial.printf("[UPDATE] Bridge模式状态变化: V=%umV, I=%umA, power_status=%d, CC=%d\n",
-                      pd_monitor.last_voltage, pd_monitor.last_current, pd_monitor.power_status, pd_monitor.cc_status);
-        last_power_status = pd_monitor.power_status;
-        last_voltage = pd_monitor.last_voltage;
-        last_current = pd_monitor.last_current;
+    // v1.2修复：Bridge模式下不调用任何PD协议函数
+    if (bridge_mode_enabled) {
+        Serial.println("[UPDATE] Bridge模式：纯监听状态更新，不涉及PD协议");
     }
 }
 
@@ -446,10 +487,14 @@ void PD_UFP_c::reset_monitor_info(void)
 {
     memset(&pd_monitor, 0, sizeof(pd_monitor_t));
     pd_monitor.last_timestamp = clock_ms();
+    
+    // v1.2修复：重置Source PDO缓存
+    pd_monitor.source_pdo_count = 0;
+    memset(pd_monitor.source_pdos, 0, sizeof(pd_monitor.source_pdos));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Bridge功能方法实现
+// v1.2修复：Bridge功能方法实现
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void PD_UFP_c::init_Bridge(uint8_t int_pin)
@@ -469,22 +514,35 @@ void PD_UFP_c::init_Bridge(uint8_t int_pin)
         status_initialized = 1;
     }
     
-    // Bridge模式：不初始化PD协议引擎，避免任何协议处理
-    // PD_protocol_init(&protocol);  // 注释掉协议初始化
+    // v1.2修复：Bridge模式完全不初始化PD协议引擎
+    // 禁用所有PD协议处理
+    Serial.println("[BRIDGE] Bridge模式：禁用PD协议引擎，纯监听模式");
+    
+    // v1.2修复：强制清除所有可能触发握手的标志
+    wait_src_cap = 0;
+    wait_ps_rdy = 0;
+    send_request = 0;
+    get_src_cap_retry_count = 0;
+    
+    Serial.println("[BRIDGE] 握手标志已清除，完全禁用PD协议");
     
     // Clear bridge log buffer
     memset(bridge_log_buffer, 0, sizeof(bridge_log_buffer));
     bridge_log_index = 0;
     
-    // 初始化监听数据
+    // v1.2修复：初始化监听数据
     memset(&pd_monitor, 0, sizeof(pd_monitor_t));
     pd_monitor.last_timestamp = clock_ms();
+    
+    // v1.2修复：初始化Source PDO缓存
+    pd_monitor.source_pdo_count = 0;
+    memset(pd_monitor.source_pdos, 0, sizeof(pd_monitor.source_pdos));
     
     // 设置默认的监听状态
     pd_monitor.power_status = STATUS_POWER_NA;  // 未知电源状态
     pd_monitor.selected_position = 1;  // 默认选择第一个电源（位置1）
     
-    // 关键修复：初始化内部状态
+    // v1.2修复：初始化内部状态
     status_power = STATUS_POWER_NA;  // 确保内部状态正确初始化
     ready_voltage = 0;
     ready_current = 0;
@@ -498,18 +556,32 @@ void PD_UFP_c::run_Bridge(void)
 {
     if (!bridge_mode_enabled) return;
     
-    // 移除timer()调用，避免无限循环重启握手
-    // 只在有中断或定时轮询时才处理
+    // v1.2修复：彻底禁用所有PD握手逻辑
+    // 纯监听模式：只记录PD消息，不进行任何协议处理
+    
+    // v1.2修复：不调用timer()函数，避免触发PD协议重试
+    // 只在有中断时才处理，且不上报给PD协议层
+    static bool bridge_mode_confirmed = false;
+    if (!bridge_mode_confirmed) {
+        Serial.println("[BRIDGE] === Bridge模式启动：完全禁用PD握手 ===");
+        bridge_mode_confirmed = true;
+    }
+    
     if (digitalRead(int_pin) == 0) {
         FUSB302_event_t FUSB302_events = 0;
         for (uint8_t i = 0; i < 3 && FUSB302_alert(&FUSB302, &FUSB302_events) != FUSB302_SUCCESS; i++) {}
         
         if (FUSB302_events) {
-            // 纯监听模式：只记录事件，不进行PD握手
+            Serial.printf("[BRIDGE] 纯监听模式事件: 0x%02X (只记录，不处理)\n", FUSB302_events);
+            
+            // v1.2修复：只处理attach/detach事件用于状态监控
+            // 不调用任何PD协议函数，不发送任何响应
             
             if (FUSB302_events & FUSB302_EVENT_DETACHED) {
-                // 设备断开连接
-                Serial.println("[BRIDGE] 设备断开连接");
+                // v1.2修复：纯监听模式：设备断开连接，只更新监听状态
+                Serial.println("[BRIDGE] 设备断开连接 (纯监听)");
+                
+                // 只更新监听状态，不调用任何PD协议函数
                 pd_monitor.cc_status = false;
                 pd_monitor.cc_pin = 0;
                 pd_monitor.packet_count = 0;
@@ -521,13 +593,17 @@ void PD_UFP_c::run_Bridge(void)
                 pd_monitor.last_current = 0;
                 pd_monitor.power_status = STATUS_POWER_NA;
                 
-                // 关键修复：调用status_power_ready重置状态
-                status_power_ready(STATUS_POWER_NA, 0, 0);
+                // v1.2修复：重置Source PDO缓存
+                pd_monitor.source_pdo_count = 0;
+                memset(pd_monitor.source_pdos, 0, sizeof(pd_monitor.source_pdos));
+                
+                // v1.2修复：不调用status_power_ready，避免触发协议处理
+                Serial.println("[BRIDGE] 断开状态已更新，不进行PD握手");
             }
             
             if (FUSB302_events & FUSB302_EVENT_ATTACHED) {
-                // 设备连接，只更新监听状态，不触发PD握手
-                Serial.println("[BRIDGE] 设备连接");
+                // v1.2修复：纯监听模式：设备连接，只更新监听状态
+                Serial.println("[BRIDGE] 设备连接 (纯监听模式)");
                 uint8_t cc1 = 0, cc2 = 0, cc = 0;
                 FUSB302_get_cc(&FUSB302, &cc1, &cc2);
                 
@@ -537,6 +613,7 @@ void PD_UFP_c::run_Bridge(void)
                     cc = cc2;
                 }
                 
+                // 只更新监听状态，不触发任何PD握手
                 pd_monitor.cc_status = true;
                 pd_monitor.cc_pin = cc;
                 
@@ -549,293 +626,278 @@ void PD_UFP_c::run_Bridge(void)
                 pd_monitor.last_voltage = 0;
                 pd_monitor.last_current = 0;
                 pd_monitor.power_status = STATUS_POWER_NA;
+                
+                // v1.2修复：重置Source PDO缓存
+                pd_monitor.source_pdo_count = 0;
+                memset(pd_monitor.source_pdos, 0, sizeof(pd_monitor.source_pdos));
+                
+                Serial.println("[BRIDGE] 连接状态已更新，纯监听模式启动");
             }
             
             if (FUSB302_EVENT_RX_SOP & FUSB302_events) {
-                // 接收到PD数据包，只统计不处理协议
+                // v1.2修复：Bridge模式：详细解析PD消息，完全禁用PD协议
                 uint16_t header;
                 uint32_t obj[7];
                 FUSB302_get_message(&FUSB302, &header, obj);
                 
                 pd_monitor.packet_count++;
                 
-                // 解析PDO信息，获取电压电流信息
+                // 详细解析消息头信息
                 uint16_t msg_header = header;
                 uint8_t num_obj = (msg_header >> 12) & 0x07;
-                uint8_t msg_type = (msg_header >> 0) & 0x1F; // 修正：使用5位而不是4位
+                uint8_t msg_type = (msg_header >> 0) & 0x1F;
                 
-                // 调试信息：打印接收到的消息信息
-                Serial.printf("[DEBUG] RX: header=0x%04X, num_obj=%d, msg_type=%d\n", 
+                // v1.2修复：恢复详细清晰的消息日志
+                Serial.printf("[PD_RX] header=0x%04X, objects=%d, type=%d (", 
                               header, num_obj, msg_type);
-                for (uint8_t i = 0; i < num_obj && i < 3; i++) {
-                    Serial.printf("[DEBUG]   obj[%d]=0x%08lX\n", i, obj[i]);
+                
+                // 消息类型解析
+                switch(msg_type) {
+                    case 0x01: Serial.print("Source_Capabilities"); break;
+                    case 0x02: Serial.print("Request"); break;
+                    case 0x03: Serial.print("PS_RDY"); break;
+                    case 0x04: Serial.print("Get_Source_Cap"); break;
+                    case 0x05: Serial.print("Get_Sink_Cap"); break;
+                    case 0x06: Serial.print("DR_Swap"); break;
+                    case 0x07: Serial.print("PR_Swap"); break;
+                    case 0x08: Serial.print("VCONN_Swap"); break;
+                    case 0x09: Serial.print("Wait"); break;
+                    case 0x0A: Serial.print("Soft_Reset"); break;
+                    case 0x0B: Serial.print("Data_Reset"); break;
+                    case 0x0C: Serial.print("Data_Reset_Complete"); break;
+                    case 0x0D: Serial.print("Not_Supported"); break;
+                    case 0x0E: Serial.print("Get_Source_Status"); break;
+                    case 0x0F: Serial.print("Get_PPS_Status"); break;
+                    case 0x10: Serial.print("Get_Sink_Status"); break;
+                    case 0x11: Serial.print("Get_Source_Cap_Extended"); break;
+                    case 0x12: Serial.print("Get_Battery_Status"); break;
+                    case 0x13: Serial.print("Get_Battery_Cap"); break;
+                    case 0x14: Serial.print("Get_Manufacturer_Info"); break;
+                    case 0x15: Serial.print("Security_Response"); break;
+                    case 0x16: Serial.print("Firmware_Update_Request"); break;
+                    case 0x17: Serial.print("Firmware_Update_Response"); break;
+                    default: Serial.print("Unknown"); break;
+                }
+                Serial.println(")");
+                
+                // 详细输出PDO数据
+                for (uint8_t i = 0; i < num_obj && i < 7; i++) {
+                    Serial.printf("[PD_RX]   PDO[%d]=0x%08lX\n", i, obj[i]);
                 }
                 
-                // 如果是Source Capabilities消息，解析PDO信息
-                // 修正：Source Capabilities在data_msg_list中索引为1，所以类型为0x01
+                // v1.2修复：Bridge模式快速处理Source Capabilities
                 if (num_obj > 0 && msg_type == 0x01) {
-                    Serial.println("[DEBUG] Source Capabilities received!");
-                    // Source Capabilities消息，解析所有PDO
+                    Serial.println("[BRIDGE] Source Capabilities - 开始解析");
+                    
+                    // 缓存所有Source PDO供后续Request解析
                     pd_monitor.src_cap_count = num_obj;
-                    // 在监听模式下，我们假设选择第一个电源（位置1）
-                    pd_monitor.selected_position = 1;
-                    
-                    // 解析第一个PDO作为默认电源信息
-                    if (num_obj > 0) {
-                        uint32_t first_pdo = obj[0];
-                        uint8_t pdo_type = (first_pdo >> 30) & 0x03;
-                        
-                        Serial.printf("[DEBUG] PDO0=0x%08lX, type=%d (当前power_status=%d)\n", 
-                                      first_pdo, pdo_type, pd_monitor.power_status);
-                        
-                        switch (pdo_type) {
-                            case 0: // Fixed Supply
-                                {
-                                    uint16_t voltage_raw = ((first_pdo >> 10) & 0x3FF);
-                                    uint16_t current_raw = ((first_pdo >> 0) & 0x3FF);
-                                    pd_monitor.power_status = STATUS_POWER_TYP;
-                                    Serial.printf("[BRIDGE] Fixed Supply: raw_v=%u(50mV), raw_i=%u(10mA)\n", 
-                                                  voltage_raw, current_raw);
-                                    
-                                    // 关键修复：只调用status_power_ready，让它处理单位转换
-                                    status_power_ready(STATUS_POWER_TYP, voltage_raw, current_raw);
-                                    Serial.printf("[BRIDGE] Fixed Supply: V=%umV, I=%umA\n", 
-                                                  pd_monitor.last_voltage, pd_monitor.last_current);
-                                }
-                                break;
-                                
-                            case 1: // Battery
-                                {
-                                    uint16_t max_voltage_raw = ((first_pdo >> 20) & 0x3FF);
-                                    uint16_t power_raw = ((first_pdo >> 0) & 0x3FF);
-                                    uint16_t max_voltage_mv = max_voltage_raw * 50; // 最大电压
-                                    uint16_t max_current_ma = (power_raw * 250000) / max_voltage_mv; // 功率转换为电流 (mA)
-                                    pd_monitor.power_status = STATUS_POWER_TYP;
-                                    Serial.printf("[BRIDGE] Battery: raw_v=%u(50mV), Power=%u*250mW, calc_i=%umA\n", 
-                                                  max_voltage_raw, power_raw, max_current_ma);
-                                    
-                                    // 关键修复：调用status_power_ready更新状态
-                                    // Battery模式转换为Fixed模式：使用最大电压和计算得到的电流
-                                    uint16_t current_raw = max_current_ma / 10; // 转换为10mA单位
-                                    status_power_ready(STATUS_POWER_TYP, max_voltage_raw, current_raw);
-                                    Serial.printf("[BRIDGE] Battery: V=%umV, I=%umA\n", 
-                                                  pd_monitor.last_voltage, pd_monitor.last_current);
-                                }
-                                break;
-                                
-                            case 2: // Variable Supply
-                                {
-                                    uint16_t max_voltage_raw = ((first_pdo >> 20) & 0x3FF);
-                                    uint16_t max_current_raw = ((first_pdo >> 0) & 0x3FF);
-                                    pd_monitor.power_status = STATUS_POWER_TYP;
-                                    Serial.printf("[BRIDGE] Variable: raw_v=%u(50mV), raw_i=%u(10mA)\n",
-                                                  max_voltage_raw, max_current_raw);
-                                    
-                                    // 关键修复：调用status_power_ready更新状态
-                                    // Variable模式直接使用原始值（与Fixed模式相同的单位）
-                                    status_power_ready(STATUS_POWER_TYP, max_voltage_raw, max_current_raw);
-                                    Serial.printf("[BRIDGE] Variable: V=%umV, I=%umA\n",
-                                                  pd_monitor.last_voltage, pd_monitor.last_current);
-                                }
-                                break;
-                                
-                            case 3: // Augmented PDO (PPS)
-                                {
-                                    // 修正：根据USB PD 3.0规范，正确的位域提取
-                                    uint16_t voltage_raw = ((first_pdo >> 17) & 0x7FF);  // 11位，位[17:7]
-                                    uint16_t current_raw = ((first_pdo >> 7) & 0xFF);    // 8位，位[14:7]
-                                    pd_monitor.power_status = STATUS_POWER_PPS;
-                                    Serial.printf("[BRIDGE] PPS: raw_v=%u(100mV), raw_i=%u(50mA)\n", 
-                                                  voltage_raw, current_raw);
-                                    
-                                    // 关键修复：调用status_power_ready更新状态
-                                    // PPS模式：ready_voltage使用20mV单位，ready_current使用50mA单位
-                                    uint16_t ready_voltage_raw = voltage_raw * 5;  // 100mV -> 20mV单位 (乘以5)
-                                    uint16_t ready_current_raw = current_raw;     // 50mA单位保持不变
-                                    status_power_ready(STATUS_POWER_PPS, ready_voltage_raw, ready_current_raw);
-                                    Serial.printf("[BRIDGE] PPS: V=%umV, I=%umA\n", 
-                                                  pd_monitor.last_voltage, pd_monitor.last_current);
-                                }
-                                break;
-                                
-                            default:
-                                Serial.printf("[DEBUG] Unknown PDO type: %d\n", pdo_type);
-                                break;
-                        }
-                    }
-                    
-                    // 如果有多个PDO，选择功率最大的作为"默认"电源
-                    uint16_t max_power_voltage = 0;
-                    uint16_t max_power_current = 0;
-                    uint32_t max_power = 0;
-                    status_power_t max_power_type = STATUS_POWER_NA;  // 记录最大功率PDO的类型
+                    pd_monitor.source_pdo_count = num_obj;
                     
                     for (uint8_t i = 0; i < num_obj && i < 7; i++) {
+                        pd_monitor.source_pdos[i] = obj[i];
+                        
+                        // 快速解析PDO信息
                         uint32_t pdo = obj[i];
-                        uint8_t type = (pdo >> 30) & 0x03;
+                        uint8_t pdo_type = (pdo >> 30) & 0x03;
                         uint16_t voltage_mv = 0;
                         uint16_t current_ma = 0;
-                        uint32_t power_mw = 0;
                         
-                        switch (type) {
+                        switch (pdo_type) {
                             case 0: // Fixed Supply
                                 {
                                     uint16_t v_raw = ((pdo >> 10) & 0x3FF);
                                     uint16_t i_raw = ((pdo >> 0) & 0x3FF);
                                     voltage_mv = v_raw * 50;
                                     current_ma = i_raw * 10;
-                                    power_mw = voltage_mv * current_ma / 1000;
-                                }
-                                break;
-                            case 2: // Variable Supply
-                                {
-                                    uint16_t v_raw = ((pdo >> 20) & 0x3FF);
-                                    uint16_t i_raw = ((pdo >> 0) & 0x3FF);
-                                    voltage_mv = v_raw * 50;
-                                    current_ma = i_raw * 10;
-                                    power_mw = voltage_mv * current_ma / 1000;
+                                    Serial.printf("[BRIDGE]   PDO[%d]: Fixed %umV %umA\n", i, voltage_mv, current_ma);
                                 }
                                 break;
                             case 3: // PPS
                                 {
-                                    // 修正：根据USB PD 3.0规范，正确的位域提取
-                                    uint16_t v_raw = ((pdo >> 17) & 0x7FF);  // 11位，位[17:7]
-                                    uint16_t i_raw = ((pdo >> 7) & 0xFF);    // 8位，位[14:7]
-                                    voltage_mv = v_raw * 100;
-                                    current_ma = i_raw * 50;
-                                    power_mw = voltage_mv * current_ma / 1000;
+                                    uint16_t v_min_raw = ((pdo >> 17) & 0x7FF);
+                                    uint16_t v_max_raw = ((pdo >> 24) & 0x3F);
+                                    uint16_t i_max_raw = ((pdo >> 7) & 0xFF);
+                                    uint16_t v_min_mv = v_min_raw * 100;
+                                    uint16_t v_max_mv = v_max_raw * 100;
+                                    uint16_t i_max_ma = i_max_raw * 50;
+                                    Serial.printf("[BRIDGE]   PDO[%d]: PPS范围 %umV-%umV, 最大电流%umA\n", 
+                                                  i, v_min_mv, v_max_mv, i_max_ma);
+                                    // v1.2修复：注意：PPS模式下不从Source Capabilities更新当前状态
+                                    // 当前状态从Request消息中获取
                                 }
                                 break;
-                        }
-                        
-                        Serial.printf("[DEBUG] PDO[%d]: Type=%d, V=%umV, I=%umA, P=%umW\n",
-                                      i, type, voltage_mv, current_ma, power_mw);
-                        
-                        if (power_mw > max_power) {
-                            max_power = power_mw;
-                            max_power_voltage = voltage_mv;
-                            max_power_current = current_ma;
-                            max_power_type = (type == 3) ? STATUS_POWER_PPS : STATUS_POWER_TYP;  // 根据PDO类型设置
+                            default:
+                                Serial.printf("[BRIDGE]   PDO[%d]: Type %d\n", i, pdo_type);
+                                break;
                         }
                     }
                     
-                    // Bridge模式：选择第一个PDO（通常为5V默认档）而不是最大功率
-                    // 这样更符合实际使用场景，用户期望看到默认的5V电压
-                    uint32_t first_pdo = obj[0];
-                    uint8_t first_type = (first_pdo >> 30) & 0x03;
-                    uint16_t first_voltage_mv = 0;
-                    uint16_t first_current_ma = 0;
-                    status_power_t first_power_type = STATUS_POWER_NA;
+                    Serial.printf("[BRIDGE] Source Capabilities: %d个PDO已缓存\n", pd_monitor.source_pdo_count);
+                    pd_monitor.selected_position = 1; // 默认选择第一个电源
                     
-                    // 解析第一个PDO
-                    switch (first_type) {
-                        case 0: // Fixed Supply
-                            {
-                                uint16_t v_raw = ((first_pdo >> 10) & 0x3FF);
-                                uint16_t i_raw = ((first_pdo >> 0) & 0x3FF);
-                                first_voltage_mv = v_raw * 50;
-                                first_current_ma = i_raw * 10;
-                                first_power_type = STATUS_POWER_TYP;
-                            }
-                            break;
-                        case 1: // Battery
-                            {
-                                uint16_t v_raw = ((first_pdo >> 20) & 0x3FF);
-                                uint16_t p_raw = ((first_pdo >> 0) & 0x3FF);
-                                first_voltage_mv = v_raw * 50;
-                                first_current_ma = (p_raw * 250000) / first_voltage_mv;
-                                first_power_type = STATUS_POWER_TYP;
-                            }
-                            break;
-                        case 2: // Variable Supply
-                            {
-                                uint16_t v_raw = ((first_pdo >> 20) & 0x3FF);
-                                uint16_t i_raw = ((first_pdo >> 0) & 0x3FF);
-                                first_voltage_mv = v_raw * 50;
-                                first_current_ma = i_raw * 10;
-                                first_power_type = STATUS_POWER_TYP;
-                            }
-                            break;
-                        case 3: // PPS
-                            {
-                                uint16_t v_raw = ((first_pdo >> 17) & 0x7FF);
-                                uint16_t i_raw = ((first_pdo >> 7) & 0xFF);
-                                first_voltage_mv = v_raw * 100;
-                                first_current_ma = i_raw * 50;
-                                first_power_type = STATUS_POWER_PPS;
-                            }
-                            break;
-                    }
-                    
-                    Serial.printf("[BRIDGE] 选择第一个PDO (默认档): V=%umV, I=%umA, Type=%d\n", 
-                                  first_voltage_mv, first_current_ma, first_power_type);
-                    
-                    // 调用status_power_ready更新为第一个PDO的值
-                    uint16_t ready_voltage_raw = 0;
-                    uint16_t ready_current_raw = 0;
-                    
-                    if (first_power_type == STATUS_POWER_PPS) {
-                        // PPS模式：ready_voltage使用20mV单位，ready_current使用50mA单位
-                        ready_voltage_raw = first_voltage_mv / 20;
-                        ready_current_raw = first_current_ma / 50;
-                    } else {
-                        // Fixed/Variable/Battery模式：ready_voltage使用50mV单位，ready_current使用10mA单位
-                        ready_voltage_raw = first_voltage_mv / 50;
-                        ready_current_raw = first_current_ma / 10;
-                    }
-                    
-                    // 更新状态为第一个PDO
-                    status_power_ready(first_power_type, ready_voltage_raw, ready_current_raw);
-                    Serial.printf("[BRIDGE] 第一个PDO已设置: V=%umV, I=%umA\n",
-                                  pd_monitor.last_voltage, pd_monitor.last_current);
-                    
-                    // 如果需要查看最大功率信息，可以保留但不选择
-                    if (max_power > 0) {
-                        Serial.printf("[BRIDGE] 最大功率PDO参考: V=%umV, I=%umA, P=%umW (未选择)\n", 
-                                      max_power_voltage, max_power_current, max_power);
+                    // v1.2修复：使用第一个PDO作为默认电源信息（仅限Fixed模式）
+                    if (num_obj > 0) {
+                        uint32_t first_pdo = obj[0];
+                        uint8_t pdo_type = (first_pdo >> 30) & 0x03;
+                        
+                        if (pdo_type == 0) { // Fixed Supply
+                            uint16_t voltage_raw = ((first_pdo >> 10) & 0x3FF);
+                            uint16_t current_raw = ((first_pdo >> 0) & 0x3FF);
+                            pd_monitor.last_voltage = voltage_raw * 50;
+                            pd_monitor.last_current = current_raw * 10;
+                            pd_monitor.power_status = STATUS_POWER_TYP;
+                            Serial.printf("[BRIDGE] 默认电源: %umV %umA\n", pd_monitor.last_voltage, pd_monitor.last_current);
+                        } else if (pdo_type == 3) {
+                            // v1.2修复：PPS模式：不设置默认电源，等待Request消息
+                            Serial.println("[BRIDGE] PPS模式：不设置默认电源，等待Request");
+                            pd_monitor.power_status = STATUS_POWER_NA;
+                        }
                     }
                 }
                 
-                // 如果接收到Request消息，只记录不更新Bridge模式状态
-                // 修正：Request在data_msg_list中索引为2，所以类型为0x02
-                else if (num_obj > 0 && msg_type == 0x02) {
-                    Serial.println("[BRIDGE] Request message received (仅监听，不更新状态)!");
-                    // Request消息，从设备请求的电源
+                // v1.2修复：Bridge模式快速处理Request消息
+                if (num_obj > 0 && msg_type == 0x02) {
+                    Serial.println("[BRIDGE] Request - 开始解析");
+                    
                     uint32_t request_pdo = obj[0];
-                    uint8_t request_type = (request_pdo >> 30) & 0x03;
-                    uint16_t voltage = 0;
-                    uint16_t current = 0;
+                    uint8_t obj_position = (request_pdo >> 28) & 0x0F; // Object position (1-based)
                     
-                    // 正确解析Request PDO的电源类型和值
-                    switch (request_type) {
-                        case 0: // Fixed Supply Request
-                            voltage = ((request_pdo >> 10) & 0x3FF) * 50; // 50mV单位
-                            current = ((request_pdo >> 0) & 0x3FF) * 10;  // 10mA单位
-                            break;
-                        case 3: // PPS Request
-                            voltage = ((request_pdo >> 17) & 0x7FF) * 100; // 100mV单位
-                            current = ((request_pdo >> 7) & 0xFF) * 50;    // 50mA单位
-                            break;
+                    Serial.printf("[BRIDGE] Request: PDO=0x%08lX, Position=%u\n", 
+                                  request_pdo, obj_position);
+                    
+                    // v1.2修复：对于PPS模式，直接从Request中解析当前电压电流
+                    // 对于Fixed模式，从Source PDO查找
+                    if (pd_monitor.source_pdo_count == 0) {
+                        Serial.println("[BRIDGE] 警告: 无缓存PDO，跳过Request解析");
+                    } else if (obj_position > 0 && obj_position <= pd_monitor.source_pdo_count) {
+                        uint32_t source_pdo = pd_monitor.source_pdos[obj_position - 1];
+                        uint8_t source_pdo_type = (source_pdo >> 30) & 0x03;
+                        
+                        Serial.printf("[BRIDGE] 位置%u -> Source PDO=0x%08lX, type=%d\n", 
+                                      obj_position, source_pdo, source_pdo_type);
+                        
+                        uint16_t voltage = 0;
+                        uint16_t current = 0;
+                        status_power_t power_status = STATUS_POWER_TYP;
+                        
+                        if (source_pdo_type == 3) {
+                            // v1.2修复：PPS模式：直接从Request中解析当前电压电流
+                            // PPS Request格式：
+                            // Bits 17-27: Output Voltage (100mV units)
+                            // Bits 7-15: Operating Current (50mA units)
+                            uint16_t voltage_raw = ((request_pdo >> 17) & 0x7FF);  // 100mV units
+                            uint16_t current_raw = ((request_pdo >> 7) & 0xFF);    // 50mA units
+                            
+                            voltage = voltage_raw * 100; // 转换为mV
+                            current = current_raw * 50;   // 转换为mA
+                            power_status = STATUS_POWER_PPS;
+                            
+                            Serial.printf("[BRIDGE] PPS Request解析: %umV %umA (原始: %u*100mV, %u*50mA)\n", 
+                                          voltage, current, voltage_raw, current_raw);
+                        } else {
+                            // Fixed模式：从Source PDO查找
+                            switch (source_pdo_type) {
+                                case 0: // Fixed Supply
+                                    {
+                                        uint16_t voltage_raw = ((source_pdo >> 10) & 0x3FF);
+                                        uint16_t current_raw = ((source_pdo >> 0) & 0x3FF);
+                                        voltage = voltage_raw * 50;
+                                        current = current_raw * 10;
+                                        power_status = STATUS_POWER_TYP;
+                                        Serial.printf("[BRIDGE] Fixed: %umV %umA\n", voltage, current);
+                                    }
+                                    break;
+                                default:
+                                    Serial.printf("[BRIDGE] 未支持类型: %d\n", source_pdo_type);
+                                    break;
+                            }
+                        }
+                        
+                        if (voltage > 0) {
+                            // 立即更新Bridge状态
+                            pd_monitor.last_voltage = voltage;
+                            pd_monitor.last_current = current;
+                            pd_monitor.power_status = power_status;
+                            pd_monitor.selected_position = obj_position;
+                            
+                            Serial.printf("[BRIDGE] 状态更新: %.3fV %.3fA [%s] 位置%u\n",
+                                          voltage/1000.0f, current/1000.0f,
+                                          power_status == STATUS_POWER_PPS ? "PPS" : "FIX",
+                                          obj_position);
+                            
+                            // v1.2修复：不调用status_power_ready，避免协议处理
+                        }
+                    } else {
+                        Serial.printf("[BRIDGE] 错误: 位置%u超出范围 (1-%u)\n", 
+                                      obj_position, pd_monitor.source_pdo_count);
                     }
-                    
-                    // Bridge模式：只记录Request信息，不更新监听状态
-                    // 因为Bridge模式不参与实际的PD握手，只监听Source Capabilities中声明的电源
-                    Serial.printf("[BRIDGE] Request (仅记录): V=%umV, I=%umA, Type=%d\n", 
-                                  voltage, current, request_type);
-                    Serial.printf("[BRIDGE] Bridge模式保持Source Capabilities电压: V=%umV, I=%umA\n",
-                                  pd_monitor.last_voltage, pd_monitor.last_current);
                 }
                 
-                // 重要：不调用PD_protocol_handle_msg，避免触发协议处理
-                // 重要：不调用handle_protocol_event，避免触发PD握手
+                // v1.2修复：Bridge模式快速处理PS_RDY消息
+                if (msg_type == 0x03) { // PS_RDY消息类型为0x03
+                    Serial.println("[BRIDGE] PS_RDY - 电源就绪");
+                    Serial.printf("[BRIDGE] PS_RDY: objects=%d\n", num_obj);
+                    
+                    if (num_obj > 0 && obj[0] != 0) {
+                        // 有对象数据，解析PDO
+                        uint32_t pdo = obj[0];
+                        uint8_t pdo_type = (pdo >> 30) & 0x03;
+                        
+                        Serial.printf("[BRIDGE] PS_RDY PDO: 0x%08lX, type=%d\n", pdo, pdo_type);
+                        
+                        if (pdo_type == 0) { // Fixed Supply
+                            uint16_t voltage_raw = ((pdo >> 10) & 0x3FF);
+                            uint16_t current_raw = ((pdo >> 0) & 0x3FF);
+                            uint16_t voltage = voltage_raw * 50;
+                            uint16_t current = current_raw * 10;
+                            
+                            pd_monitor.last_voltage = voltage;
+                            pd_monitor.last_current = current;
+                            pd_monitor.power_status = STATUS_POWER_TYP;
+                            
+                            Serial.printf("[BRIDGE] PS_RDY Fixed: %.3fV %.3fA\n", 
+                                          voltage/1000.0f, current/1000.0f);
+                        } else if (pdo_type == 3) { // PPS
+                            uint16_t voltage_raw = ((pdo >> 17) & 0x7FF);
+                            uint16_t current_raw = ((pdo >> 7) & 0xFF);
+                            uint16_t voltage = voltage_raw * 100;
+                            uint16_t current = current_raw * 50;
+                            
+                            pd_monitor.last_voltage = voltage;
+                            pd_monitor.last_current = current;
+                            pd_monitor.power_status = STATUS_POWER_PPS;
+                            
+                            Serial.printf("[BRIDGE] PS_RDY PPS: %.3fV %.3fA\n", 
+                                          voltage/1000.0f, current/1000.0f);
+                        }
+                    } else {
+                        // 无对象数据，确认当前状态
+                        Serial.println("[BRIDGE] PS_RDY确认当前状态");
+                        if (pd_monitor.last_voltage > 0) {
+                            Serial.printf("[BRIDGE] 确认: %.3fV %.3fA [%s]\n",
+                                          pd_monitor.last_voltage/1000.0f,
+                                          pd_monitor.last_current/1000.0f,
+                                          pd_monitor.power_status == STATUS_POWER_PPS ? "PPS" : "FIX");
+                        }
+                    }
+                }
+                
+                // v1.2修复：Bridge模式完全禁用所有PD协议调用
+                // 不调用PD_protocol_handle_msg
+                // 不调用handle_protocol_event
+                // 不调用FUSB302_tx_sop
+                // 不调用PD_protocol_respond
+                
+                Serial.println("[MONITOR] 消息已记录，Bridge模式不参与PD协议");
             }
             
             if (FUSB302_events & FUSB302_EVENT_GOOD_CRC_SENT) {
-                // Good CRC发送成功，只统计不响应
+                // v1.2修复：纯监听模式：Good CRC只统计，完全不发送响应
                 pd_monitor.good_crc_count++;
                 
-                // 重要：不调用PD_protocol_respond，避免发送响应消息
-                // 重要：不调用FUSB302_tx_sop，避免发送任何PD消息
+                Serial.println("[MONITOR] Good CRC已统计，Bridge模式不发送响应");
+                // v1.2修复：不调用PD_protocol_respond
+                // v1.2修复：不调用FUSB302_tx_sop
             }
         }
         
@@ -846,7 +908,7 @@ void PD_UFP_c::run_Bridge(void)
 
 int PD_UFP_c::status_bridge_log_readline(char *buffer, int maxlen)
 {
-    // 增强的安全检查
+    // v1.2修复：增强的安全检查
     if (!bridge_mode_enabled || !buffer || maxlen <= 0 || maxlen > 1024) {
         return 0;
     }
@@ -931,25 +993,26 @@ int PD_UFP_c::status_bridge_log_readline(char *buffer, int maxlen)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// 监听函数实现 - 返回实际数值
+// v1.2修复：监听函数实现 - 返回实际数值
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 float PD_UFP_c::get_bridge_voltage(void)
 {
-    // Bridge模式：优先使用监听数据中的值
+    // v1.2修复：Bridge模式：返回监听数据中的值
     if (bridge_mode_enabled) {
-        // 调试：每次调用都输出，便于跟踪问题
-        Serial.printf("[GET_VOLTAGE] Bridge模式: last_voltage=%umV, power_status=%d\n", 
-                      pd_monitor.last_voltage, pd_monitor.power_status);
-        
-        if (pd_monitor.last_voltage > 0) {
-            float voltage_v = pd_monitor.last_voltage / 1000.0f; // 转换为伏特（监听数据已经是mV）
-            Serial.printf("[GET_VOLTAGE] -> 返回 %.3fV\n", voltage_v);
-            return voltage_v;
+        // 调试信息：显示内部状态
+        static uint32_t last_debug = 0;
+        if (millis() - last_debug > 3000) { // 每3秒输出一次调试
+            Serial.printf("[DEBUG] get_bridge_voltage: last_voltage=%umV, power_status=%d, bridge_mode=%s\n",
+                          pd_monitor.last_voltage, pd_monitor.power_status, bridge_mode_enabled ? "true" : "false");
+            last_debug = millis();
         }
         
-        Serial.printf("[GET_VOLTAGE] -> 返回 0V (last_voltage=%u)\n", pd_monitor.last_voltage);
-        return 0.0f; // 监听模式下无电压信息时返回0V
+        if (pd_monitor.last_voltage > 0) {
+            float voltage_v = pd_monitor.last_voltage / 1000.0f; // 转换为伏特
+            return voltage_v;
+        }
+        return 0.0f;
     }
     
     // 非Bridge模式：使用原有逻辑
@@ -967,20 +1030,13 @@ float PD_UFP_c::get_bridge_voltage(void)
 
 float PD_UFP_c::get_bridge_current(void)
 {
-    // Bridge模式：优先使用监听数据中的值
+    // v1.2修复：Bridge模式：返回监听数据中的值
     if (bridge_mode_enabled) {
-        // 调试：每次调用都输出，便于跟踪问题
-        Serial.printf("[GET_CURRENT] Bridge模式: last_current=%umA, power_status=%d\n", 
-                      pd_monitor.last_current, pd_monitor.power_status);
-        
         if (pd_monitor.last_current > 0) {
-            float current_a = pd_monitor.last_current / 1000.0f; // 转换为安培（监听数据已经是mA）
-            Serial.printf("[GET_CURRENT] -> 返回 %.3fA\n", current_a);
+            float current_a = pd_monitor.last_current / 1000.0f; // 转换为安培
             return current_a;
         }
-        
-        Serial.printf("[GET_CURRENT] -> 返回 0A (last_current=%u)\n", pd_monitor.last_current);
-        return 0.0f; // 监听模式下无电流信息时返回0A
+        return 0.0f;
     }
     
     // 非Bridge模式：使用原有逻辑
@@ -998,7 +1054,7 @@ float PD_UFP_c::get_bridge_current(void)
 
 String PD_UFP_c::get_bridge_power_mode(void)
 {
-    // Bridge模式：根据监听状态返回模式字符串
+    // v1.2修复：Bridge模式：根据监听状态返回模式字符串
     if (bridge_mode_enabled) {
         switch (pd_monitor.power_status) {
             case STATUS_POWER_TYP:
@@ -1072,8 +1128,37 @@ void PD_UFP_c::set_bridge_log_level(pd_bridge_log_level_t level)
     bridge_log_level = level;
 }
 
+void PD_UFP_c::force_refresh_bridge_status(void)
+{
+    if (bridge_mode_enabled && pd_monitor.cc_status && pd_monitor.src_cap_count > 0) {
+        Serial.println("[FORCE_REFRESH] 强制刷新Bridge状态");
+        Serial.printf("[FORCE_REFRESH] 当前状态: V=%umV, I=%umA, status=%d, position=%u\n",
+                      pd_monitor.last_voltage, pd_monitor.last_current, pd_monitor.power_status, pd_monitor.selected_position);
+        
+        // 强制调用status_power_ready确保状态同步
+        if (pd_monitor.power_status == STATUS_POWER_PPS && pd_monitor.last_voltage > 0 && pd_monitor.last_current > 0) {
+            // PPS模式
+            uint16_t voltage_raw = pd_monitor.last_voltage / 100; // 转换为100mV单位
+            uint16_t current_raw = pd_monitor.last_current / 50;  // 转换为50mA单位
+            uint16_t ready_voltage_raw = voltage_raw * 5;  // 100mV -> 20mV单位
+            uint16_t ready_current_raw = current_raw;     // 50mA单位
+            status_power_ready(STATUS_POWER_PPS, ready_voltage_raw, ready_current_raw);
+        } else if (pd_monitor.power_status == STATUS_POWER_TYP && pd_monitor.last_voltage > 0 && pd_monitor.last_current > 0) {
+            // Fixed/Variable/Battery模式
+            uint16_t voltage_raw = pd_monitor.last_voltage / 50;  // 转换为50mV单位
+            uint16_t current_raw = pd_monitor.last_current / 10;  // 转换为10mA单位
+            status_power_ready(STATUS_POWER_TYP, voltage_raw, current_raw);
+        }
+        
+        Serial.printf("[FORCE_REFRESH] 刷新后: V=%.3fV, I=%.3fA\n", 
+                      get_bridge_voltage(), get_bridge_current());
+    } else {
+        Serial.println("[FORCE_REFRESH] Bridge模式未启用或无连接");
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// 监听模式下的电源信息获取函数实现
+// v1.2修复：监听模式下的电源信息获取函数实现
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 String PD_UFP_c::get_bridge_power_info_string(void)
@@ -1149,5 +1234,3 @@ bool PD_UFP_c::is_bridge_pps_capable(void)
     
     return (pd_monitor.power_status == STATUS_POWER_PPS);
 }
-
-

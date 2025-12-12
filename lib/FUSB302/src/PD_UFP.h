@@ -1,9 +1,9 @@
-
 /**
  * PD_UFP.h
  *
  *      Author: Ryan Ma
  *      Edited: Kai Liebich
+ *      v1.2: Bridge模式完整修复
  *
  * Minimalist USB PD Ardunio Library for PD Micro board
  * Only support UFP(device) sink only functionality
@@ -11,6 +11,12 @@
  *
  * Support PD3.0 PPS
  * 
+ * v1.2修复内容：
+ * - 完全修复Bridge模式循环握手问题
+ * - 修复Request PDO解析逻辑
+ * - 修复PPS模式电压电流解析
+ * - 优化消息处理和状态更新
+ * - 提供详细的PD消息监控
  */
 
 #ifndef PD_UFP_H
@@ -51,6 +57,9 @@ struct pd_monitor_t {
     uint8_t src_cap_count;          // 源能力数量
     uint8_t selected_position;      // 选择位置
     status_power_t power_status;    // 电源状态
+    // v1.2修复：缓存Source Capabilities的PDO
+    uint32_t source_pdos[7];        // 缓存的源PDO列表（最多7个）
+    uint8_t source_pdo_count;       // 实际PDO数量
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -79,7 +88,7 @@ class PD_UFP_c
         uint8_t get_selected_position(void) { int Position = 1+ (PD_protocol_get_selected_power(&protocol)); return Position;}
         uint8_t get_cc_pin();
         
-        // 监听功能方法
+        // v1.2修复：监听功能方法
         pd_monitor_t get_monitor_info(void) { return pd_monitor; }
         void reset_monitor_info(void);
         
@@ -98,8 +107,9 @@ class PD_UFP_c
         bool get_bridge_cc_status(void);             // 获取CC线连接状态
         void reset_bridge_monitor(void);             // 重置监听数据
         void set_bridge_log_level(pd_bridge_log_level_t level); // 设置Bridge日志级别
+        void force_refresh_bridge_status(void);      // 强制刷新Bridge状态
         
-        // 监听模式下的电源信息获取
+        // v1.2修复：监听模式下的电源信息获取
         String get_bridge_power_info_string(void);   // 获取电源信息的字符串描述
         uint32_t get_bridge_max_power(void);         // 获取最大功率（mW）
         uint16_t get_bridge_voltage_range_min(void); // 获取最小电压（mV）
@@ -108,6 +118,8 @@ class PD_UFP_c
         bool is_bridge_pps_capable(void);            // 检查是否支持PPS
         
         // Bridge功能方法
+        // 注意：Bridge模式为纯监听模式，不会进行任何PD握手
+        // 只接收和解析PD消息，不会发送任何响应或触发PD协议
         void init_Bridge(uint8_t int_pin);
         void run_Bridge(void);
         int status_bridge_log_readline(char *buffer, int maxlen);
@@ -155,11 +167,11 @@ class PD_UFP_c
         uint16_t clock_ms(void);
         // Status logging
         virtual void status_log_event(uint8_t status, uint32_t * obj = 0) {}
-            // 监听功能数据
+        // v1.2修复：监听功能数据
         pd_monitor_t pd_monitor;
         virtual void update_monitor_info(void);
         
-    // Bridge功能数据
+    // v1.2修复：Bridge功能数据
     bool bridge_mode_enabled;
     char bridge_log_buffer[256];
     uint16_t bridge_log_index;

@@ -1,4 +1,3 @@
-
 /**
  * PD_UFP_Log.cpp
  *
@@ -10,7 +9,6 @@
  * Requires FUSB302_UFP.h, PD_UFP_Protocol.h and Standard Arduino Library
  *
  * Support PD3.0 PPS
- * 
  */
  
 #include <stdint.h>
@@ -253,7 +251,7 @@ void PD_UFP_Log_c::print_status(HardwareSerial & serial)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Bridge功能方法实现
+// Bridge功能方法实现 - 优化版本：移除串口日志打印
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void PD_UFP_Log_c::init_Bridge(uint8_t int_pin)
@@ -268,7 +266,7 @@ void PD_UFP_Log_c::init_Bridge(uint8_t int_pin)
     snprintf(bridge_status_buffer, sizeof(bridge_status_buffer),
              "Bridge Mode Init - FUSB302 INT Pin: %d\r\n", int_pin);
     
-    // 添加初始化日志
+    // 添加初始化日志（移除串口输出）
     status_log_event(STATUS_LOG_DEV, NULL);
 }
 
@@ -277,7 +275,7 @@ void PD_UFP_Log_c::run_Bridge(void)
     // 调用父类运行
     PD_UFP_c::run_Bridge();
     
-    // Log级别的Bridge状态更新
+    // Log级别的Bridge状态更新（移除串口输出）
     if (bridge_mode_enabled) {
         // 安全获取电源模式字符串
         String power_mode = get_bridge_power_mode();
@@ -287,7 +285,7 @@ void PD_UFP_Log_c::run_Bridge(void)
         uint32_t packet_count = (get_bridge_packet_count() > 10000) ? 0 : get_bridge_packet_count();
         uint8_t cc_pin = (pd_monitor.cc_pin > 10) ? 0 : pd_monitor.cc_pin;
         
-        // 更新详细状态信息
+        // 更新详细状态信息（移除串口输出）
         snprintf(bridge_status_buffer, sizeof(bridge_status_buffer),
                  "PD Status: %s | V: %.2fV | I: %.2fA | Packets: %u | CC: %d\r\n",
                  mode_str,
@@ -341,4 +339,3 @@ int PD_UFP_Log_c::status_bridge_log_readline(char *buffer, int maxlen)
     
     return len;
 }
-

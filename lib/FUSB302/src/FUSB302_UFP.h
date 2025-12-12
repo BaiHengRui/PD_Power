@@ -73,4 +73,3 @@ FUSB302_ret_t FUSB302_tx_hard_reset   (FUSB302_dev_t *dev);
 FUSB302_ret_t FUSB302_alert           (FUSB302_dev_t *dev, FUSB302_event_t *events);
 
 #endif /* FUSB302_H */
-
