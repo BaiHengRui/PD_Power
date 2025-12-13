@@ -293,9 +293,9 @@ void HAL::UI_QuickCharge(){
 }
 
 //PD 监听界面
-const uint8_t MAX_LINES = 3;
-const uint8_t LINE_HEIGHT = 60;
-const uint8_t START_Y = 2;
+const uint8_t MAX_LINES = 1;
+const uint8_t LINE_HEIGHT = 180;
+const uint8_t START_Y = 1;
 String logBuffer[MAX_LINES];
 void HAL::UI_LOG(){
     spr.createSprite(240, 240);
@@ -320,7 +320,7 @@ void HAL::UI_LOG(){
         } 
     }
     static long PDtimeMillis = millis(); // 用于记录PD时间
-    if (millis() - PDtimeMillis >= 200)
+    if (millis() - PDtimeMillis >= 100)
     {
         PDtimeMillis = millis(); // 更新PD时间
         // 更新显示缓冲区
@@ -339,7 +339,7 @@ void HAL::UI_LOG(){
 
     spr.setTextColor(0XA7FA);
     spr.setCursor(5, 220); // 设置光标位置
-    if (PD_Option == 0)
+    if (PD_Option >= 0 && PD_Option <= 3)
     {
         // spr.print("FIX:" + String(PD_Voltage*0.05,2) + "V " + String(PD_Current*0.01,2) + "A");
         spr.print(" FIX:" + String(PD_Voltage,2) + "V " + String(PD_Current,2) + "A");

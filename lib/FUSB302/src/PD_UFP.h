@@ -44,7 +44,7 @@ enum pd_bridge_log_level_t {
     PD_BRIDGE_LOG_LEVEL_DETAILED    // 详细信息
 };
 
-// 监听功能数据结构 - 极简版，移除PDO缓存
+// 监听功能数据结构
 struct pd_monitor_t {
     uint32_t packet_count;          // 数据包计数
     uint32_t good_crc_count;        // 成功CRC计数
@@ -58,11 +58,9 @@ struct pd_monitor_t {
     uint8_t selected_position;      // 选择位置
     status_power_t power_status;    // 电源状态
     
-    // v1.3恢复：PDO缓存 - 关键功能
     uint32_t source_pdos[7];        // 缓存源能力PDO数组
     uint8_t source_pdo_count;       // 源PDO数量
     
-    // v1.3新增：最新PDO消息存储用于TFT显示
     uint16_t last_msg_header;       // 最后消息头
     uint32_t last_msg_obj[7];       // 最后消息的PDO对象
     uint8_t last_msg_obj_count;     // 最后消息的PDO数量
@@ -220,6 +218,13 @@ class PD_UFP_Log_c : public PD_UFP_c
         void init_Bridge(uint8_t int_pin);
         void run_Bridge(void);
         int status_bridge_log_readline(char *buffer, int maxlen);
+        
+        // v1.3新增：设置Bridge日志级别
+        void set_bridge_log_level(pd_bridge_log_level_t level) {
+            bridge_log_level = level;
+            Serial.printf("[BRIDGE] 日志级别设置为: %s\n", 
+                         level == PD_BRIDGE_LOG_LEVEL_BASIC ? "BASIC" : "DETAILED");
+        }
 
     protected:
         int status_log_readline_msg(char * buffer, int maxlen, status_log_t * log);

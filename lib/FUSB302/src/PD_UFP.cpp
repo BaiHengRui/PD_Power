@@ -70,7 +70,7 @@ PD_UFP_c::PD_UFP_c()
     // v1.3优化：简化初始化，只初始化核心变量
     bridge_mode_enabled = false;
     bridge_log_index = 0;
-    bridge_log_level = PD_BRIDGE_LOG_LEVEL_BASIC;
+    bridge_log_level = PD_BRIDGE_LOG_LEVEL_BASIC; // 默认基础模式，用户可在初始化后修改
     
     // 初始化基本状态
     status_initialized = 0;
@@ -390,7 +390,9 @@ void PD_UFP_c::init_Bridge(uint8_t int_pin)
 {
     this->int_pin = int_pin;
     bridge_mode_enabled = true;
-    bridge_log_level = PD_BRIDGE_LOG_LEVEL_BASIC; // 默认使用基础模式
+    // v1.3修复：不强制设置日志级别，允许用户自定义
+    // 注意：如需显示PKT计数器，请在init_Bridge后调用 set_bridge_log_level(PD_BRIDGE_LOG_LEVEL_DETAILED);
+    // bridge_log_level 保持原有设置，如果未设置则默认为基础模式
     
     // Initialize FUSB302 for bridge mode
     pinMode(int_pin, INPUT_PULLUP); // Set FUSB302 int pin input and pull up
@@ -421,6 +423,8 @@ void PD_UFP_c::init_Bridge(uint8_t int_pin)
     pd_monitor.power_status = STATUS_POWER_NA;  // 未知电源状态
     pd_monitor.selected_position = 1;  // 默认选择第一个电源（位置1）
     
+    pd_monitor.last_voltage = 5000;    // 5V默认电压（mV）
+    pd_monitor.last_current = 1000;    // 1A默认电流（mA）
     // v1.3优化：初始化内部状态
     status_power = STATUS_POWER_NA;  // 确保内部状态正确初始化
     ready_voltage = 0;
@@ -470,10 +474,19 @@ void PD_UFP_c::run_Bridge(void)
                 uint8_t cc1 = 0, cc2 = 0, cc = 0;
                 FUSB302_get_cc(&FUSB302, &cc1, &cc2);
                 
-                if (cc1 && cc2 == 0) {
-                    cc = cc1;
-                } else if (cc2 && cc1 == 0) {
-                    cc = cc2;
+                // 确保cc1和cc2是有效值（0-2），防止异常值导致CC显示3
+                cc1 = (cc1 > 2) ? 0 : cc1;
+                cc2 = (cc2 > 2) ? 0 : cc2;
+                
+                // 完整的CC引脚赋值逻辑
+                if (cc1 > 0 && cc2 == 0) {
+                    cc = cc1;      // CC1有效
+                } else if (cc2 > 0 && cc1 == 0) {
+                    cc = cc2;      // CC2有效
+                } else if (cc1 > 0 && cc2 > 0) {
+                    cc = 1;        // 两边都有效，默认选择CC1
+                } else {
+                    cc = 0;        // 两边都无效
                 }
                 
                 pd_monitor.cc_status = true;
@@ -512,10 +525,13 @@ void PD_UFP_c::run_Bridge(void)
                 pd_monitor.last_msg_header = header;
                 pd_monitor.last_msg_obj_count = num_obj;
                 pd_monitor.last_msg_type = msg_type;
-                for (uint8_t i = 0; i < num_obj && i < 7; i++) {
-                    pd_monitor.last_msg_obj[i] = obj[i];
+                for (uint8_t i = 0; i < 7; i++) {  // 初始化所有7个位置
+                    if (i < num_obj && i < 7) {
+                        pd_monitor.last_msg_obj[i] = obj[i];
+                    } else {
+                        pd_monitor.last_msg_obj[i] = 0;  // 清空未使用的位置
+                    }
                 }
-                
                 
                 // v1.3恢复：完整PD消息解析逻辑
                 
@@ -579,6 +595,10 @@ void PD_UFP_c::run_Bridge(void)
                             pd_monitor.last_current = current_raw * 50;   // 转换为mA
                             pd_monitor.power_status = STATUS_POWER_PPS;
                             pd_monitor.selected_position = obj_position;
+                            
+                            // v1.3调试：显示即时PPS解析（无缓存）
+                            Serial.printf("[LIVE-PPS-NC] 立即更新: %umV %umA pos=%d\n", 
+                                          voltage_raw * 100, current_raw * 50, obj_position);
                         }
                     } else if (obj_position > 0 && obj_position <= pd_monitor.source_pdo_count) {
                         // Request在有效范围内，从缓存PDO中查找匹配
@@ -590,12 +610,16 @@ void PD_UFP_c::run_Bridge(void)
                         status_power_t power_status = STATUS_POWER_TYP;
                         
                         if (request_pdo & (1U << 27)) {
-                            // PPS模式：直接从Request中解析
+                            // PPS模式：直接从Request中解析（最可靠）
                             uint16_t voltage_raw = ((request_pdo >> 17) & 0x7FF);
                             uint16_t current_raw = ((request_pdo >> 7) & 0xFF);
                             voltage = voltage_raw * 100; // 转换为mV
                             current = current_raw * 50;   // 转换为mA
                             power_status = STATUS_POWER_PPS;
+                            
+                            // v1.3调试：显示即时PPS解析
+                            Serial.printf("[LIVE-PPS] 立即更新: %umV %umA pos=%d\n", 
+                                          voltage, current, obj_position);
                         } else if (source_pdo_type == 0) {
                             // Fixed模式：从Source PDO中获取
                             uint16_t voltage_raw = ((source_pdo >> 10) & 0x3FF);
@@ -629,7 +653,7 @@ void PD_UFP_c::run_Bridge(void)
                     }
                 }
                 else if (msg_type == 0x03) {
-                    // PS_RDY - 电源就绪消息
+                    // PS_RDY - 电源就绪消息（立即更新）
                     if (num_obj > 0 && obj[0] != 0) {
                         uint32_t pdo = obj[0];
                         uint8_t pdo_type = (pdo >> 30) & 0x03;
@@ -640,12 +664,18 @@ void PD_UFP_c::run_Bridge(void)
                             pd_monitor.last_voltage = voltage_raw * 50;
                             pd_monitor.last_current = current_raw * 10;
                             pd_monitor.power_status = STATUS_POWER_TYP;
+                            
+                            Serial.printf("[LIVE-PSRDY-FIX] 立即更新: %umV %umA\n", 
+                                          voltage_raw * 50, current_raw * 10);
                         } else if (pdo_type == 3) { // PPS
                             uint16_t voltage_raw = ((pdo >> 17) & 0x7FF);
                             uint16_t current_raw = ((pdo >> 7) & 0xFF);
                             pd_monitor.last_voltage = voltage_raw * 100;
                             pd_monitor.last_current = current_raw * 50;
                             pd_monitor.power_status = STATUS_POWER_PPS;
+                            
+                            Serial.printf("[LIVE-PSRDY-PPS] 立即更新: %umV %umA\n", 
+                                          voltage_raw * 100, current_raw * 50);
                         }
                     }
                 }
@@ -729,17 +759,17 @@ float PD_UFP_c::get_bridge_current(void)
 
 String PD_UFP_c::get_bridge_power_mode(void)
 {
-    // v1.3修复：Bridge模式：改进PPS模式检测逻辑
+    // v1.3修复：Bridge模式：强化PPS模式检测逻辑
     if (bridge_mode_enabled) {
-        // 直接检查Bridge模式的电源状态
+        // 优先检查明确的电源状态
         if (pd_monitor.power_status == STATUS_POWER_PPS) {
             return "PPS";
         } else if (pd_monitor.power_status == STATUS_POWER_TYP) {
             return "FIX";
-        } else if (pd_monitor.power_status == STATUS_POWER_NA && pd_monitor.cc_status) {
-            // 设备已连接但电源状态未确定，推测可能的电源模式
+        } else if (pd_monitor.cc_status) {
+            // 设备已连接，但电源状态未确定，立即推测
             
-            // 如果有缓存的PDO，检查第一个PDO的类型
+            // 方案1：检查缓存的PDO类型
             if (pd_monitor.source_pdo_count > 0) {
                 uint32_t first_pdo = pd_monitor.source_pdos[0];
                 uint8_t pdo_type = (first_pdo >> 30) & 0x03;
@@ -751,10 +781,35 @@ String PD_UFP_c::get_bridge_power_mode(void)
                 }
             }
             
-            // 如果没有PDO缓存但有电压电流值，推测为PPS模式
+            // 方案2：检查最近的PDO消息（最优先）
+            if (pd_monitor.last_msg_obj_count > 0) {
+                uint32_t first_obj = pd_monitor.last_msg_obj[0];
+                uint8_t msg_type = pd_monitor.last_msg_type;
+                
+                // 如果最后接收的是Request消息，且包含PPS特征
+                if (msg_type == 0x02 && (first_obj & (1U << 27))) {
+                    return "PPS";
+                }
+                
+                // 如果最后接收的是Source Capabilities，检查PDO类型
+                if (msg_type == 0x01) {
+                    uint8_t pdo_type = (first_obj >> 30) & 0x03;
+                    if (pdo_type == 3) {
+                        return "PPS";
+                    } else if (pdo_type == 0) {
+                        return "FIX";
+                    }
+                }
+            }
+            
+            // 方案3：检查电压电流值模式（备用）
             if (pd_monitor.last_voltage > 0 && pd_monitor.last_current > 0) {
-                // 如果电流值看起来像是PPS模式（通常是50mA单位）
+                // 检查电流值是否符合PPS模式特征（通常是50mA的倍数）
                 if (pd_monitor.last_current % 50 == 0) {
+                    return "PPS";
+                }
+                // 检查电压值是否符合PPS模式特征（通常是100mV的倍数）
+                if (pd_monitor.last_voltage % 100 == 0) {
                     return "PPS";
                 }
             }
@@ -961,70 +1016,101 @@ int PD_UFP_c::status_bridge_log_readline(char *buffer, int maxlen)
     uint16_t time_ms = (uint16_t)(pd_monitor.last_timestamp % 10000);
     snprintf(time_str, sizeof(time_str), "%04u: ", time_ms);
     
-    // v1.3优化：根据日志级别决定输出格式
-    if (bridge_log_level == PD_BRIDGE_LOG_LEVEL_BASIC) {
-        // 基础模式：只输出电压电流和PDO信息
+    // v1.3优化：统一输出格式，直接包含所有重要信息
+    if (pd_monitor.cc_status) {
+        // 有连接时的完整信息输出
         float voltage = get_bridge_voltage();
         float current = get_bridge_current();
+        uint32_t power_mw = get_bridge_max_power();
         uint8_t pdo_count = pd_monitor.src_cap_count;
         uint8_t selected_pos = pd_monitor.selected_position;
-        
-        if (pd_monitor.cc_status && voltage > 0) {
-            n = snprintf(buffer, maxlen, "%s%d.%02dV %d.%02dA pos[%d] PDO[%d]\n",
-                        time_str,
-                        (int)voltage, (int)((voltage - (int)voltage) * 100 + 0.5f),
-                        (int)current, (int)((current - (int)current) * 100 + 0.5f),
-                        selected_pos, pdo_count);
-        } else {
-            n = snprintf(buffer, maxlen, "%sNo PD connection\n", time_str);
-        }
-    } else {
-        // 详细模式：输出所有信息（但仍然比原来简化很多）
+        uint32_t packet_count = pd_monitor.packet_count;
+        uint32_t crc_count = pd_monitor.good_crc_count;
+        uint8_t cc_pin = pd_monitor.cc_pin;
         String power_mode = get_bridge_power_mode();
         const char* mode_str = power_mode.c_str();
         
-        if (pd_monitor.cc_status) {
-            // 有连接时的详细输出
-            float voltage = get_bridge_voltage();
-            float current = get_bridge_current();
-            uint32_t power_mw = get_bridge_max_power();
-            uint8_t pdo_count = pd_monitor.src_cap_count;
-            uint8_t selected_pos = pd_monitor.selected_position;
-            uint32_t packet_count = pd_monitor.packet_count;
-            uint32_t crc_count = pd_monitor.good_crc_count;
-            uint8_t cc_pin = pd_monitor.cc_pin;
+        // 主要电源信息行（基础信息）
+        n = snprintf(buffer, maxlen, "%s%d.%02dV %d.%02dA %s %uW\n",
+                    time_str,
+                    (int)voltage, (int)((voltage - (int)voltage) * 100 + 0.5f),
+                    (int)current, (int)((current - (int)current) * 100 + 0.5f),
+                    mode_str, power_mw / 1000);
+        
+        // 添加统计信息行（PKT、CRC、CC引脚）
+        if (n < maxlen - 50) {
+            int stats_len = snprintf(buffer + n, maxlen - n, "%s  CC:%d PKT:%u CRC:%u\n",
+                                   time_str, cc_pin, packet_count, crc_count);
+            n += stats_len;
+        }
+        
+        // 添加最新PDO消息信息（十六进制数据）
+        if (n < maxlen - 100 && pd_monitor.last_msg_obj_count > 0) {
+            // 消息头信息
+            int msg_len = snprintf(buffer + n, maxlen - n, "%s  MSG:0x%04X TYPE:%d\n",
+                                 time_str, pd_monitor.last_msg_header, pd_monitor.last_msg_type);
+            n += msg_len;
             
-            // 主要电源信息行
-            n = snprintf(buffer, maxlen, "%s%d.%02dV %d.%02dA %s PDO[%d] pos[%d] %uW\n",
-                        time_str,
-                        (int)voltage, (int)((voltage - (int)voltage) * 100 + 0.5f),
-                        (int)current, (int)((current - (int)current) * 100 + 0.5f),
-                        mode_str, pdo_count, selected_pos, power_mw / 1000);
-            
-            // 如果缓冲区还有空间，添加统计信息
-            if (n < maxlen - 50) {
-                int additional_len = snprintf(buffer + n, maxlen - n, "%s  CC:%d PKT:%u CRC:%u\n",
-                                            time_str, cc_pin, packet_count, crc_count);
-                n += additional_len;
+            // 输出PDO对象的十六进制数据（降低空间要求，确保OBJ信息显示）
+            for (uint8_t i = 0; i < pd_monitor.last_msg_obj_count && i < 7 && n < maxlen - 20; i++) {
+                int obj_len = snprintf(buffer + n, maxlen - n, "%s  OBJ[%d]:0x%08lX\n",
+                                     time_str, i, pd_monitor.last_msg_obj[i]);
+                n += obj_len;
             }
             
-            // v1.3新增：如果缓冲区还有更多空间，添加PDO十六进制数据
-            if (n < maxlen - 100 && pd_monitor.last_msg_obj_count > 0) {
-                int pdo_len = snprintf(buffer + n, maxlen - n, "%s  MSG:0x%04X TYPE:%d\n",
-                                     time_str, pd_monitor.last_msg_header, pd_monitor.last_msg_type);
-                n += pdo_len;
+            // 实时解析当前消息的电压电流（立即更新显示）
+            if (pd_monitor.last_msg_type == 0x02 && pd_monitor.last_msg_obj_count > 0) {
+                // Request消息：直接解析Request的PDO
+                uint32_t request_pdo = pd_monitor.last_msg_obj[0];
                 
-                // 输出PDO对象的十六进制数据
-                for (uint8_t i = 0; i < pd_monitor.last_msg_obj_count && i < 7 && n < maxlen - 30; i++) {
-                    int obj_len = snprintf(buffer + n, maxlen - n, "%s  OBJ[%d]:0x%08lX\n",
-                                         time_str, i, pd_monitor.last_msg_obj[i]);
-                    n += obj_len;
+                if (request_pdo & (1U << 27)) {
+                    // PPS模式：直接从Request解析
+                    uint16_t voltage_raw = ((request_pdo >> 17) & 0x7FF);
+                    uint16_t current_raw = ((request_pdo >> 7) & 0xFF);
+                    
+                    float voltage = voltage_raw * 0.1f;  // 转换为V
+                    float current = current_raw * 0.05f; // 转换为A
+                    
+                    int live_len = snprintf(buffer + n, maxlen - n, "%s  %.1fV %.2fA PPS\n",
+                                          time_str, voltage, current);
+                    n += live_len;
+                } else {
+                    // Fixed模式：从Request的Object Position查找
+                    uint8_t obj_position = (request_pdo >> 28) & 0x0F;
+                    
+                    int live_len = snprintf(buffer + n, maxlen - n, "%s  Fixed PDO[%d] pos[%d]\n",
+                                          time_str, pdo_count, selected_pos);
+                    n += live_len;
+                }
+            } else if (pd_monitor.last_msg_type == 0x03 && pd_monitor.last_msg_obj_count > 0) {
+                // PS_RDY消息：显示最终电源状态
+                uint32_t pdo = pd_monitor.last_msg_obj[0];
+                uint8_t pdo_type = (pdo >> 30) & 0x03;
+                
+                if (pdo_type == 0) {
+                    uint16_t voltage_raw = ((pdo >> 10) & 0x3FF);
+                    uint16_t current_raw = ((pdo >> 0) & 0x3FF);
+                    float voltage = voltage_raw * 0.05f;
+                    float current = current_raw * 0.01f;
+                    
+                    int ready_len = snprintf(buffer + n, maxlen - n, "%s  READY: %.1fV %.2fA Fixed\n",
+                                           time_str, voltage, current);
+                    n += ready_len;
+                } else if (pdo_type == 3) {
+                    uint16_t voltage_raw = ((pdo >> 17) & 0x7FF);
+                    uint16_t current_raw = ((pdo >> 7) & 0xFF);
+                    float voltage = voltage_raw * 0.1f;
+                    float current = current_raw * 0.05f;
+                    
+                    int ready_len = snprintf(buffer + n, maxlen - n, "%s  READY: %.1fV %.2fA PPS\n",
+                                           time_str, voltage, current);
+                    n += ready_len;
                 }
             }
-        } else {
-            // 无连接时的输出
-            n = snprintf(buffer, maxlen, "%sNo PD device connected\n", time_str);
         }
+    } else {
+        // 无连接时的输出
+        n = snprintf(buffer, maxlen, "%sNo PD device connected\n", time_str);
     }
     
     return n;
@@ -1189,10 +1275,10 @@ int PD_UFP_Log_c::status_bridge_log_readline(char *buffer, int maxlen)
     
     int len = 0;
     
-    // 首先返回父类的基本状态信息
+    // 首先返回父类的完整状态信息（包括PKT、CRC、CC等）
     len = PD_UFP_c::status_bridge_log_readline(buffer, maxlen);
     
-    // v1.3优化：根据Bridge日志级别添加不同详细程度的信息
+    // v1.3优化：子类只添加额外的调试信息，避免重复
     if (len < maxlen - 1 && bridge_mode_enabled) {
         int remaining = maxlen - len - 1; // 留一个字符给终止符
         if (remaining > 0) {
@@ -1203,13 +1289,12 @@ int PD_UFP_Log_c::status_bridge_log_readline(char *buffer, int maxlen)
             const char* status_str = (bridge_status_buffer[0] != '\0') ? bridge_status_buffer : "Unknown";
             
             if (bridge_log_level >= (pd_bridge_log_level_t)1) { // 1 = DETAILED
-                // 详细模式：包含更多调试信息，使用安全默认值
+                // 详细模式：只添加额外的调试信息（不重复PKT、CRC等）
                 uint16_t retry_count = (get_src_cap_retry_count > 10) ? 0 : get_src_cap_retry_count;
-                uint32_t crc_count = (pd_monitor.good_crc_count > 100000) ? 0 : pd_monitor.good_crc_count;
                 
                 int log_len = snprintf(buffer + len, remaining, 
-                    "Bridge-Detail: %s | Retry:%d CRC:%lu Init:%s",
-                    status_str, retry_count, crc_count,
+                    "Debug: %s Retry:%d Init:%s",
+                    status_str, retry_count,
                     status_initialized ? "OK" : "ERROR");
                 if (log_len > 0 && log_len < remaining) {
                     len += log_len;
@@ -1226,10 +1311,6 @@ int PD_UFP_Log_c::status_bridge_log_readline(char *buffer, int maxlen)
     
     return len;
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// FUSB302 I2C接口函数实现 - 修复链接错误
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 FUSB302_ret_t PD_UFP_c::FUSB302_i2c_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t count)
 {

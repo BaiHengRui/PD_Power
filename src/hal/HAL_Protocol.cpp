@@ -14,7 +14,7 @@ void HAL::PD_Init() {
 void HAL::PD_Run() {
     PD_UFP.run_Bridge();
     static long PDtimeMillis = millis(); 
-    if (millis() - PDtimeMillis >= 1* 200) { // 200ms
+    if (millis() - PDtimeMillis >= 1* 100) { // 200ms
         PDtimeMillis = millis();
         PD_UFP.status_bridge_log_readline(pdbuf, sizeof(pdbuf) - 1);
         // Serial.printf(buf);
@@ -22,6 +22,7 @@ void HAL::PD_Run() {
     
     PD_Voltage = PD_UFP.get_bridge_voltage();
     PD_Current = PD_UFP.get_bridge_current();
+    Serial.printf("PD V: %.2fV I: %.2fA\r\n", PD_Voltage, PD_Current);
     
     status_power_t status = PD_UFP.get_ps_status();
     if (status == STATUS_POWER_TYP) {
@@ -32,8 +33,7 @@ void HAL::PD_Run() {
         PD_Option = 1; // 当前为可编程电源模式 (PPS)
     } else {
         PD_Ready = 0; // 电源未就绪 (STATUS_POWER_NA)
-        PD_Voltage = 0;
-        PD_Current = 0;
+        PD_Option = 3; //监控模式
     }
     
     // 更新其他状态信息
