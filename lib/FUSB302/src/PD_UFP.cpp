@@ -479,7 +479,7 @@ void PD_UFP_c::update_monitor_info(void)
     
     // v1.2修复：Bridge模式下不调用任何PD协议函数
     if (bridge_mode_enabled) {
-        Serial.println("[UPDATE] Bridge模式：纯监听状态更新，不涉及PD协议");
+        // Serial.println("[UPDATE] Bridge模式：纯监听状态更新，不涉及PD协议");
     }
 }
 
