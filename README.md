@@ -52,8 +52,8 @@
 
 ### PDO数据包解析效果图
 LCD屏幕为本工程现版本的LOG界面，右侧屏幕为KM003C的PD触发界面，使用酷态科10号电能棒，C-C数据线（带E-Marker芯片/48V5A EPR）
-![img1 初代](/test/v1-1.jpg)
-![img2 初代](/test/v1-2.jpg)
+![img1 初代](/imgs/v1-1.jpg)
+![img2 初代](/imgs/v1-2.jpg)
 ### 更新1
-![img v1.3](/test/v12-1.jpg)
-![img v1.3](/test/v12-2.jpg)
+![img v1.3](/imgs/v12-1.jpg)
+![img v1.3](/imgs/v12-2.jpg)
