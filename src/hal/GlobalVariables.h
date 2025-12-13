@@ -27,7 +27,7 @@ extern float NTCv, NTCm, NTC_Temperature;
 
 /*PD*/
 extern bool PD_Enable;
-extern char pdbuf[128];
+extern char pdbuf[256];
 extern bool PD_Option; // default 0 FIX/1 PPS
 extern bool PD_Ready; // default 0 not ready/1 ready
 extern float PD_Voltage, PD_Current;

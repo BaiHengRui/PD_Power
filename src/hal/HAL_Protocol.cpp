@@ -14,7 +14,7 @@ void HAL::PD_Init() {
 void HAL::PD_Run() {
     PD_UFP.run_Bridge();
     static long PDtimeMillis = millis(); 
-    if (millis() - PDtimeMillis >= 200) { // 200ms
+    if (millis() - PDtimeMillis >= 1* 200) { // 200ms
         PDtimeMillis = millis();
         PD_UFP.status_bridge_log_readline(pdbuf, sizeof(pdbuf) - 1);
         // Serial.printf(buf);

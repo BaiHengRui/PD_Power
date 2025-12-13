@@ -3,7 +3,7 @@
  *
  *      Author: Ryan Ma
  *      Edited: Kai Liebich
- *      v1.2: Bridge模式完整修复
+ *      v1.3: 极简Bridge模式优化版本
  *
  * Minimalist USB PD Ardunio Library for PD Micro board
  * Only support UFP(device) sink only functionality
@@ -11,12 +11,12 @@
  *
  * Support PD3.0 PPS
  * 
- * v1.2修复内容：
- * - 完全修复Bridge模式循环握手问题
- * - 修复Request PDO解析逻辑
- * - 修复PPS模式电压电流解析
- * - 优化消息处理和状态更新
- * - 提供详细的PD消息监控
+ * v1.3优化内容：
+ * - 完全移除PD缓存机制，避免数据损坏
+ * - 直接解析PD消息，无需缓存映射
+ * - 极简日志输出，大幅减少串口压力
+ * - 实时状态更新，操作与显示完全对应
+ * - 优化性能，避免串口缓冲溢出
  */
 
 #ifndef PD_UFP_H
@@ -44,7 +44,7 @@ enum pd_bridge_log_level_t {
     PD_BRIDGE_LOG_LEVEL_DETAILED    // 详细信息
 };
 
-// 监听功能数据结构
+// 监听功能数据结构 - 极简版，移除PDO缓存
 struct pd_monitor_t {
     uint32_t packet_count;          // 数据包计数
     uint32_t good_crc_count;        // 成功CRC计数
@@ -57,9 +57,16 @@ struct pd_monitor_t {
     uint8_t src_cap_count;          // 源能力数量
     uint8_t selected_position;      // 选择位置
     status_power_t power_status;    // 电源状态
-    // v1.2修复：缓存Source Capabilities的PDO
-    uint32_t source_pdos[7];        // 缓存的源PDO列表（最多7个）
-    uint8_t source_pdo_count;       // 实际PDO数量
+    
+    // v1.3恢复：PDO缓存 - 关键功能
+    uint32_t source_pdos[7];        // 缓存源能力PDO数组
+    uint8_t source_pdo_count;       // 源PDO数量
+    
+    // v1.3新增：最新PDO消息存储用于TFT显示
+    uint16_t last_msg_header;       // 最后消息头
+    uint32_t last_msg_obj[7];       // 最后消息的PDO对象
+    uint8_t last_msg_obj_count;     // 最后消息的PDO数量
+    uint8_t last_msg_type;          // 最后消息类型
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -88,7 +95,7 @@ class PD_UFP_c
         uint8_t get_selected_position(void) { int Position = 1+ (PD_protocol_get_selected_power(&protocol)); return Position;}
         uint8_t get_cc_pin();
         
-        // v1.2修复：监听功能方法
+        // v1.3优化：监听功能方法
         pd_monitor_t get_monitor_info(void) { return pd_monitor; }
         void reset_monitor_info(void);
         
@@ -109,7 +116,7 @@ class PD_UFP_c
         void set_bridge_log_level(pd_bridge_log_level_t level); // 设置Bridge日志级别
         void force_refresh_bridge_status(void);      // 强制刷新Bridge状态
         
-        // v1.2修复：监听模式下的电源信息获取
+        // v1.3优化：监听模式下的电源信息获取
         String get_bridge_power_info_string(void);   // 获取电源信息的字符串描述
         uint32_t get_bridge_max_power(void);         // 获取最大功率（mW）
         uint16_t get_bridge_voltage_range_min(void); // 获取最小电压（mV）
@@ -167,11 +174,11 @@ class PD_UFP_c
         uint16_t clock_ms(void);
         // Status logging
         virtual void status_log_event(uint8_t status, uint32_t * obj = 0) {}
-        // v1.2修复：监听功能数据
+        // v1.3优化：监听功能数据
         pd_monitor_t pd_monitor;
         virtual void update_monitor_info(void);
         
-    // v1.2修复：Bridge功能数据
+    // v1.3优化：Bridge功能数据
     bool bridge_mode_enabled;
     char bridge_log_buffer[256];
     uint16_t bridge_log_index;
