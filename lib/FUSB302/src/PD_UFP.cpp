@@ -11,8 +11,7 @@
  *
  * Support PD3.0 PPS
  * 
- * v1.2修复内容：
- * - 完全修复Bridge模式循环握手问题
+ * - 修复Bridge模式循环握手问题
  * - 修复Request PDO解析逻辑，正确从Object position查找Source PDO
  * - 修复PPS模式电压电流解析，直接从Request获取当前值
  * - 优化消息处理和状态更新逻辑
