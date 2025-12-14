@@ -1289,15 +1289,27 @@ int PD_UFP_Log_c::status_bridge_log_readline(char *buffer, int maxlen)
             const char* status_str = (bridge_status_buffer[0] != '\0') ? bridge_status_buffer : "Unknown";
             
             if (bridge_log_level >= (pd_bridge_log_level_t)1) { // 1 = DETAILED
-                // 详细模式：只添加额外的调试信息（不重复PKT、CRC等）
                 uint16_t retry_count = (get_src_cap_retry_count > 10) ? 0 : get_src_cap_retry_count;
+                uint8_t pdo_cache_position = pd_monitor.selected_position; // 缓存数组中当前选择的PDO位置
+                uint8_t pdo_cache_total = pd_monitor.source_pdo_count; // 实际PDO总数
+                uint8_t pdo_cached_count = (pdo_cache_total > 7) ? 7 : pdo_cache_total; // 实际缓存的PDO数量
                 
-                int log_len = snprintf(buffer + len, remaining, 
-                    "Debug: %s Retry:%d Init:%s",
-                    status_str, retry_count,
-                    status_initialized ? "OK" : "ERROR");
-                if (log_len > 0 && log_len < remaining) {
-                    len += log_len;
+                if (pdo_cache_total > 7) {
+                    int log_len = snprintf(buffer + len, remaining, 
+                        "Debug: %s Retry:%d Init:%s List:%d/%d (Cached:%d)",
+                        status_str, retry_count,
+                        status_initialized ? "OK" : "ERROR", pdo_cache_position, pdo_cache_total, pdo_cached_count);
+                    if (log_len > 0 && log_len < remaining) {
+                        len += log_len;
+                    }
+                } else {
+                    int log_len = snprintf(buffer + len, remaining, 
+                        "Debug: %s Retry:%d Init:%s List:%d/%d",
+                        status_str, retry_count,
+                        status_initialized ? "OK" : "ERROR", pdo_cache_position, pdo_cache_total);
+                    if (log_len > 0 && log_len < remaining) {
+                        len += log_len;
+                    }
                 }
             } else {
                 // 基础模式：只显示基本状态信息
