@@ -2576,6 +2576,65 @@ void TFT_eSPI::fillEllipse(int16_t x0, int16_t y0, int32_t rx, int32_t ry, uint1
 
 
 /***************************************************************************************
+** Function name:           drawRing
+** Description:             Draw a ring/arc with controllable length (for loading animations)
+***************************************************************************************/
+// Draw a ring (arc) with specified length - useful for loading animations
+// x, y: center coordinates
+// w, h: width and height of the ring (for elliptical rings, or same for circular)
+// length: length of the ring in pixels (0 to full ring)
+// color: color of the ring
+void TFT_eSPI::drawRing(int32_t x, int32_t y, int32_t w, int32_t h, int32_t length, uint32_t color)
+{
+  if (w < 2 || h < 2) return;
+  if (length <= 0) return;
+  
+  //begin_tft_write();          // Sprite class can use this function, avoiding begin_tft_write()
+  inTransaction = true;
+
+  // Calculate the total circumference for a full ring
+  // For ellipse: approximate circumference using Ramanujan's approximation
+  int32_t a = w / 2;  // semi-major axis
+  int32_t b = h / 2;  // semi-minor axis
+  
+  // Ramanujan's approximation for ellipse circumference
+  float circumference = PI * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)));
+  
+  // If length exceeds full circumference, clamp to full ring
+  if (length >= (int32_t)circumference) {
+    // Draw full ellipse ring
+    drawEllipse(x, y, a, b, color);
+  } else {
+    // Calculate start and end angles for the arc
+    // Start from top (12 o'clock position) and go clockwise
+    float startAngle = -PI / 2;  // Start at top (12 o'clock)
+    float arcAngle = (length / circumference) * 2 * PI;  // Angle span of the arc
+    float endAngle = startAngle + arcAngle;
+    
+    // Draw the arc by sampling points along the ellipse
+    int32_t numPoints = max(8, length / 2);  // At least 8 points, more for longer arcs
+    int32_t prevX = x + a * cos(startAngle);
+    int32_t prevY = y + b * sin(startAngle);
+    
+    for (int32_t i = 1; i <= numPoints; i++) {
+      float angle = startAngle + (arcAngle * i / numPoints);
+      int32_t currX = x + a * cos(angle);
+      int32_t currY = y + b * sin(angle);
+      
+      // Draw line segment from previous point to current point
+      drawLine(prevX, prevY, currX, currY, color);
+      
+      prevX = currX;
+      prevY = currY;
+    }
+  }
+
+  inTransaction = lockTransaction;
+  end_tft_write();              // Does nothing if Sprite class uses this function
+}
+
+
+/***************************************************************************************
 ** Function name:           fillScreen
 ** Description:             Clear the screen to defined colour
 ***************************************************************************************/

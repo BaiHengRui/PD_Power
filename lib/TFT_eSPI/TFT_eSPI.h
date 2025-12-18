@@ -531,7 +531,9 @@ class TFT_eSPI : public Print { friend class TFT_eSprite; // Sprite class has ac
 
            //                 Corner 1               Corner 2               Corner 3
            drawTriangle(int32_t x1,int32_t y1, int32_t x2,int32_t y2, int32_t x3,int32_t y3, uint32_t color),
-           fillTriangle(int32_t x1,int32_t y1, int32_t x2,int32_t y2, int32_t x3,int32_t y3, uint32_t color);
+           fillTriangle(int32_t x1,int32_t y1, int32_t x2,int32_t y2, int32_t x3,int32_t y3, uint32_t color),
+
+           drawRing(int32_t x, int32_t y, int32_t w, int32_t h, int32_t length, uint32_t color);
 
 
   // Smooth (anti-aliased) graphics drawing
