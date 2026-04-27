@@ -1,14 +1,16 @@
 
 // This is the command sequence that initialises the ST7789 driver
 //
-// This setup information uses simple 8 bit SPI writecommand() and writedata() functions
+// This setup information uses simple 8-bit SPI writecommand() and writedata() functions
 //
 // See ST7735_Setup.h file for an alternative format
 
 #ifndef INIT_SEQUENCE_3
 {
+  fillScreen(TFT_RED);
   writecommand(ST7789_SLPOUT);   // Sleep out
-  delay(120);
+  // delay(120);
+  delay(5);
 
   writecommand(ST7789_NORON);    // Normal display mode on
 
@@ -24,11 +26,12 @@
 
   writecommand(ST7789_RAMCTRL);
   writedata(0x00);
-  writedata(0xE0); // 5 to 6 bit conversion: r0 = r5, b0 = b5
+  writedata(0xE0); // 5 to 6-bit conversion: r0 = r5, b0 = b5
 
   writecommand(ST7789_COLMOD);
   writedata(0x55);
-  delay(10);
+  // delay(10);
+  delay(1);
 
   //--------------------------------ST7789V Frame rate setting----------------------------------//
   writecommand(ST7789_PORCTRL);
@@ -115,11 +118,13 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   end_tft_write();
-  delay(120);
+  // delay(120);
+  delay(5);
   begin_tft_write();
 
   writecommand(ST7789_DISPON);    //Display on
-  delay(120);
+  // delay(120);
+  delay(5);
 
 #ifdef TFT_BL
   // Turn on the back-light LED
@@ -143,7 +148,7 @@
 
  // writecommand(ST7789_RAMCTRL);
  // writedata(0x00);
- // writedata(0xE0); // 5 to 6 bit conversion: r0 = r5, b0 = b5
+ // writedata(0xE0); // 5 to 6-bit conversion: r0 = r5, b0 = b5
 
   writecommand(ST7789_COLMOD);
   writedata(0x55);

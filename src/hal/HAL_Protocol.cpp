@@ -1,18 +1,20 @@
 #include "hal.h"
 #include "Config.h"
 
-PD_UFP_Log_c PD_UFP(PD_LOG_LEVEL_INFO,PD_BRIDGE_LOG_LEVEL_DETAILED);
+// PD_UFP_Log_c PD_UFP(PD_LOG_LEVEL_INFO,PD_BRIDGE_LOG_LEVEL_DETAILED);
+PD_UFP_c PD_UFP;
 
 void HAL::PD_Init() {
-    // PD_UFP.init_PPS(FUSB302_INT_PIN,PPS_V(PD_POWER_OPTION_MAX_VOLTAGE), PPS_A(PD_POWER_OPTION_MAX_CURRENT), PD_POWER_OPTION_MAX_POWER);
+    PD_UFP.init_PPS(FUSB302_INT_PIN,PPS_V(PD_POWER_OPTION_MAX_VOLTAGE), PPS_A(PD_POWER_OPTION_MAX_CURRENT), PD_POWER_OPTION_MAX_POWER);
     // PD_UFP.init_PPS(FUSB302_INT_PIN,PPS_V(20),PPS_A(5));
     PD_UFP.enable_vbus_sense(0); // 关闭 VBUS 检测
-    PD_UFP.init_Bridge(FUSB302_INT_PIN); // 使用Bridge模式进行监听
+    // PD_UFP.init_Bridge(FUSB302_INT_PIN); // 使用Bridge模式进行监听
     Serial.println("FUSB302 PD Bridge Init!");
 }
 
 void HAL::PD_Run() {
-    PD_UFP.run_Bridge();
+    // PD_UFP.run_Bridge();
+    PD_UFP.run();
     static long PDtimeMillis = millis(); 
     if (millis() - PDtimeMillis >= 1* 100) { // 200ms
         PDtimeMillis = millis();
@@ -40,6 +42,17 @@ void HAL::PD_Run() {
     PD_Src_Cap_Count = PD_UFP.get_bridge_src_cap_count(); // 获取源能力计数
     PD_Position = PD_UFP.get_bridge_selected_position(); // 获取PD位置
     ccbus_used = PD_UFP.get_bridge_cc_pin(); // 获取CC线状态，0/NULL 1/CC1 2/CC2
+}
+
+void HAL::Set_PD_Power(float voltage, float current) {
+    if (PD_Option == 1) { // 仅在PPS模式下设置电压和电流
+        uint16_t pps_voltage = static_cast<uint16_t>(voltage * 20); // 转换为50mV单位
+        uint8_t pps_current = static_cast<uint8_t>(current * 10); // 转换为100mA单位
+        PD_UFP.set_PPS(pps_voltage, pps_current);
+        Serial.printf("Set PD Power: %.2fV, %.2fA\r\n", voltage, current);
+    } else {
+        Serial.println("Cannot set PD power: Not in PPS mode");
+    }
 }
 
 void HAL::QC_Init() {

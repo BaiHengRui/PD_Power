@@ -29,6 +29,7 @@ namespace HAL
     /* charge */
     void PD_Init();
     void PD_Run();
+    void Set_PD_Power(float voltage, float current);
     void QC_Init();
     void QC_Run();
     /* pd protocol */
@@ -57,20 +58,6 @@ namespace HAL
     void UI_OTA_Fail();
     void UI_WiFi_Connect();
     void UI_WiFi_Connect_Fail();
-
-    /* LVGL新增功能 */
-    void LVGL_Init();
-    void LVGL_Run();
-    void show_screen(int screen_id);
-    void navigate_up();
-    void navigate_down();
-    void confirm_menu_selection();
-    void navigate_back();
-    void LVGL_UpdateMainData();
-    void LVGL_UpdateCurveData();
-    void LVGL_UpdateLogData();
-    void LVGL_UpdateSettingData();
-    void LVGL_UpdateOTAData();
 
     /* button */
     void Button_Init();
