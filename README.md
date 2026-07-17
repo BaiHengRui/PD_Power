@@ -1,61 +1,103 @@
-使用ESP32-S3主控，INA226检测芯片，FUSB302 PD芯片的小型电源。可选的PD/QC功能（需要充电器支持）
+# PD_Power — ESP32-S3 PD 快充电源监视器
 
-# 未开放完全阶段
-## 更改显示界面
-到"PD_Power\src\main.cpp"文件里，更改setup()函数，Now_App = 2;的值，界面代号在"src\hal\hal.cpp"里的`Sys_Run()`有注明
+基于 ESP32-S3 + INA226 + FUSB302，支持 PD/QC 协议监听、电压电流曲线、OTA 升级。
 
-## 如果你想要测试PD功能
-### 注意！ 只能开启其中一个！
-到"src/hal/hal_Protocol.cpp"文件里，`void HAL::PD_Init()`函数  
+> 硬件详见 [立创开源平台](https://oshwhub.com/bhr13151022)
 
-`PD_UFP.init_PPS(FUSB302_INT_PIN,PPS_V(20),PPS_A(5));`则是握手PPS档20V 5A
+## 硬件配置
 
-`PD_UFP.init_PPS(FUSB302_INT_PIN,PPS_V(PD_POWER_OPTION_MAX_VOLTAGE), PPS_A(PD_POWER_OPTION_MAX_CURRENT), PD_POWER_OPTION_MAX_POWER);`则是握手获取到的充电器最大的挡位  
+| 组件 | 型号 | 接口 |
+|------|------|------|
+| 主控 | ESP32-S3 | SPI/I2C |
+| 电量计 | INA226 | I2C (5mΩ 采样) |
+| PD 芯片 | FUSB302 | I2C + INT |
+| 屏幕 | ST7789 240×240 | SPI |
+| WiFi | ESP32-S3 内置 | OTA 升级 |
 
-`PD_UFP.init(FUSB302_INT_PIN,PD_POWER_OPTION_MAX_9V);`是握手充电器固定档 9V挡位  
+## 项目结构
 
-`PD_UFP.init_Bridge(FUSB302_INT_PIN);`则是开启监听模式。目前不可以和SNK模式同时使用。
-监听模式目前有启动顺序较严格的要求！但功能影响不大
-注意！监听模式的FIX挡位可以正常解析，PPS挡位解析会出现错误！
-[查看效果图片](#pdo数据包解析图)
+```
+PD_Power/
+├── platformio.ini           # PlatformIO 项目配置
+├── src/
+│   ├── main.cpp             # FreeRTOS 任务入口 (6 个任务)
+│   ├── hal/                 # 硬件抽象层
+│   │   ├── hal.h/cpp        # 系统初始化 + 曲线更新 + Toast
+│   │   ├── globals.h/cpp    # 全局变量
+│   │   ├── hal_button.cpp   # 按键 (Button2: 单击/长按)
+│   │   ├── hal_buzzer.cpp   # 蜂鸣器
+│   │   ├── hal_gpio.cpp     # ADC 读取
+│   │   ├── hal_ina.cpp      # INA226 驱动
+│   │   ├── hal_lcd.cpp      # LCD 初始化/亮度/旋转
+│   │   ├── hal_nvs.cpp      # NVS 持久化
+│   │   ├── hal_pd.cpp       # PD Sniffer (PDLib)
+│   │   └── hal_web.cpp      # WiFi + OTA WebServer
+│   ├── ui/                  # UI 界面
+│   │   ├── ui.h
+│   │   └── ui.cpp           # 主页/曲线/PD日志/系统信息/OTA 等
+│   ├── assets/              # 资源
+│   │   ├── fonts/           # 字体 (MiSans, OPPOSans, Din1451)
+│   │   └── imgs/            # 图标
+│   ├── html/                # OTA 网页
+│   └── backup/              # 旧架构备份
+├── lib/                     # 第三方库
+│   ├── Button2/             # 按钮
+│   ├── INA226Lib/           # INA226
+│   ├── PDLib/               # PD Sniffer + Parser
+│   ├── TFT_eSPI/            # TFT 驱动
+│   └── WiFiManager/         # WiFi 配网
+└── test/
+```
 
+## 功能
 
-#### 如果屏幕会显示"闪烁"/"错位"/"颜色错误"等情况
-更改lib\TFT_eSPI\User_Setup.h的374行`#define SPI_FREQUENCY` 默认SPI速率为80MHz，可以尝试降低到55MHz后清除工程然后重新编译，但降低SPI速率会使刷新率也降低（应该不会闪烁问题不算大）。
-### 目前进度
-1. 电压电流测量
-2. PD触发
-3. PD日志监听获取
-4. OTA升级
-### 待实现/优化的
-1. 按键逻辑
-2. 菜单
-3. 可自定义选项且保持的PD设置
-4. 优化运行性能
-5. QC协议功能栈
-6. PD协议功能栈
-### 遗留问题！
-1. PPS数据包解析问题
-2. FIX/PPS的PDO数据包解析过慢
-3. PDO数据包逻辑需优化，必须在FUSB302启动后握手电源才能正常解析数据，否则显示0/0
-4. 无法正常获取解析到的电压电流到变量中，原因未知
-5. （好难搞）
+- [x] 电压/电流/功率实时测量 (INA226)
+- [x] PD 协议被动监听 (Source Cap / Request / PPS / VDM)
+- [x] 电压电流曲线 (ring buffer + sticky auto-scale)
+- [x] PD 日志解析显示
+- [x] OTA 无线升级 (WebServer + WiFiManager)
+- [x] 系统信息页
+- [ ] QC 协议
+- [ ] 菜单设置
+- [ ] PD Sink 触发
 
-# 更新日志 
-    
-    2025/12/14日
-        新增PD数据包显示日志输出，优化日志显示布局，临时解决底部信息栏功率不显示问题
-        遗留了PPS解析失败的问题，卡在判断PPS状态上了。
-        因为PDO缓存列表，使用需要重新请求约5次刷新列表才能继续解析数据包，待优化。
-    2025/12/18日
-        新增了TFT_eSPI库圆环绘制
+## 页面与按键
 
+| 按键 | 功能 |
+|------|------|
+| SW1 (Btn1) | 下一页 |
+| SW2 (Btn2) | 上一页 |
+| SW3 (Btn3) | 一键进入 OTA |
+| SW4 (Btn4) | 回主页 |
 
+| 页码 | 页面 |
+|------|------|
+| 0 | 主界面 (V/A/W + PDO) |
+| 1 | 电压电流曲线 |
+| 2 | 按键测试 |
+| 3 | 菜单 (待实现) |
+| 4 | 设置 |
+| 5 | 系统信息 |
+| 6 | PD 电源配置 |
+| 7 | QC 快充 |
+| 8 | PD 日志监听 |
+| 9-13 | WiFi/OTA 相关 |
 
-### PDO数据包解析效果图
-LCD屏幕为本工程现版本的LOG界面，右侧屏幕为KM003C的PD触发界面，使用酷态科10号电能棒，C-C数据线（带E-Marker芯片/48V5A EPR）
-![img1 初代](/imgs/v1-1.jpg)
-![img2 初代](/imgs/v1-2.jpg)
-### 更新1
-![img v1.3](/imgs/v12-1.jpg)
+## FreeRTOS 任务
+
+| 任务 | 核心 | 栈 | 频率 | 职责 |
+|------|------|-----|------|------|
+| Sensor | 0 | 3K | 200Hz | INA226 + GPIO |
+| PD | 0 | 4K | 100Hz | PD Sniffer |
+| Button | 0 | 3K | 100Hz | 按键扫描 |
+| Graph | 0 | 2K | 50Hz | 曲线 ring buffer |
+| WiFi | 1 | 8K | 100Hz | WiFiManager + OTA |
+| Display | 0 | 8K | 25Hz | UI 渲染 |
+
+## 烧录
+
+```bash
+pio run --target upload
+pio device monitor -b 115200
+```
 ![img v1.3](/imgs/v12-2.jpg)
