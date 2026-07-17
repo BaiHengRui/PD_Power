@@ -21,7 +21,9 @@
 #include <TFT_eSPI.h>
 #include <INA226.h>
 #include <Button2.h>
-#include <PD_UFP.h>
+// #include <PD_UFP.h>         // 旧版PD库 (已被PDLib替代)
+#include <PD_Sniffer.h>        // 新PDLib: 被动监听/嗅探
+// #include <PD_Sink.h>        // 新PDLib: 主动Sink (如需PD请求功能)
 #include <WiFiManager.h>
 
 #endif // LIBRARY_H

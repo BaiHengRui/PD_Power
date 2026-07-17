@@ -1,45 +1,32 @@
+// ============================================================
+// GPIO / ADC reading
+// ============================================================
 #include "hal.h"
-#include "Config.h"
 
-void HAL::GPIO_Init() {
-    analogReadResolution(12);
-    analogSetClockDiv(1);
-    analogSetAttenuation(ADC_11db);
-
-    pinMode(LCD_BL_PIN, OUTPUT);
-    pinMode(DP_PIN, INPUT);
+void HAL::GPIO_Init()
+{
     pinMode(DN_PIN, INPUT);
-    pinMode(NTC_PIN, INPUT);
-    pinMode(SW1, INPUT_PULLDOWN);
-    pinMode(SW2, INPUT_PULLDOWN);
-    pinMode(SW3, INPUT_PULLDOWN);
-    pinMode(SW4, INPUT_PULLDOWN);
+    pinMode(DP_PIN, INPUT);
     pinMode(CC1_PIN, INPUT);
     pinMode(CC2_PIN, INPUT);
-    pinMode(VBUS_ADC,INPUT);
-    pinMode(BUZZER_PIN,OUTPUT);
-
-
+    pinMode(NTC_PIN, INPUT);
+    pinMode(VBUS_ADC, INPUT);
+    analogReadResolution(12);
 }
 
-void HAL::GPIO_Run() {
-    int ADC_DP = analogRead(DP_PIN);
-    int ADC_DN = analogRead(DN_PIN);
-    int ADC_CC1 = analogRead(CC1_PIN);
-    int ADC_CC2 = analogRead(CC2_PIN);
-    
-    v_DP = (float)ADC_DP * 3.3 / 4095.0;
-    v_DN = (float)ADC_DN * 3.3 / 4095.0;
-    v_CC1 = (float)ADC_CC1 * 3.3 / 4095.0;
-    v_CC2 = (float)ADC_CC2 * 3.3 / 4095.0;
+void HAL::GPIO_Read()
+{
+    v_DN  = analogRead(DN_PIN)  * 3.3f / 4095.0f;
+    v_DP  = analogRead(DP_PIN)  * 3.3f / 4095.0f;
+    v_CC1 = analogRead(CC1_PIN) * 3.3f / 4095.0f;
+    v_CC2 = analogRead(CC2_PIN) * 3.3f / 4095.0f;
 
-    NTCv = map(analogRead(NTC_PIN), 0, 4095, 0, 3300);
-    NTCm = (3300 - NTCv) * 10000 / NTCv;
-    NTC_Temperature = (3450 * 298.15) / (3450 + (298.15 * log(NTCm / 10000))) - 273.15;
-    /*
-     * R=10K ohm
-     * Beta:3450K
-     * Kelvins:298.15 = 0(*C)
-     * Kelvins:273.15 = 25(*C)
-     */
+    float ntcV = analogRead(NTC_PIN) * 3.3f / 4095.0f;
+    // 简易 NTC 温度估算 (10kΩ @ 25℃, β=3950)
+    if (ntcV > 0.01f && ntcV < 3.29f) {
+        float r = 10000.0f * ntcV / (3.3f - ntcV);
+        NTC_Temperature = 1.0f / (logf(r / 10000.0f) / 3950.0f + 1.0f / 298.15f) - 273.15f;
+    } else {
+        NTC_Temperature = 25.0f;
+    }
 }

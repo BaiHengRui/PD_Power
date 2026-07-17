@@ -1,0 +1,108 @@
+/**
+ * @file    HAL_Protocol.cpp
+ * @brief   PD 协议 HAL 层 — 使用 PDLib v2.0 的 PD_Sniffer 被动监听
+ * 
+ * PDLib 架构:
+ *   PD_Sniffer  → 被动嗅探 (Bridge模式, 不干扰PD握手, 监听Source↔Sink通信)
+ *   PD_Sink     → 主动请求 (UFP模式, 可发起PD协商和PPS调压)
+ * 
+ * 当前使用 PD_Sniffer 进行纯监听, 如需主动PD请求请切换到 PD_Sink
+ */
+
+#include "hal.h"
+#include "Config.h"
+
+// ============================================================================
+// 全局 PD Sniffer 实例 (被动监听, 不干扰PD总线)
+// ============================================================================
+static PD_Sniffer pdSniffer;
+
+// ============================================================================
+// PD_Init: 初始化 FUSB302 为被动监听模式
+// ============================================================================
+void HAL::PD_Init() {
+    // 使用 PDLib v2.0 的 PD_Sniffer
+    // begin() 内部自动: 初始化FUSB302 → 设为MODE_PASSIVE → 禁用AUTO_CRC
+    if (pdSniffer.begin(FUSB302_INT_PIN)) {
+        Serial.println("[PD] Sniffer init OK (被动监听模式, 不干扰PD握手)");
+    } else {
+        Serial.println("[PD] Sniffer init FAILED!");
+    }
+}
+
+// ============================================================================
+// PD_Run: 主循环更新 (在 sensorTask 中以 ~100Hz 调用)
+// ============================================================================
+void HAL::PD_Run() {
+    // 轮询 FUSB302 事件并解析 PD 消息
+    pdSniffer.update();
+    
+    // --- 更新全局变量 (兼容旧代码) ---
+    
+    // 电压/电流 (V/A 浮点, 直接获取)
+    PD_Voltage = pdSniffer.getVoltage();
+    PD_Current = pdSniffer.getCurrent();
+    
+    // 电源状态
+    PD_PowerStatus pwrStatus = pdSniffer.getPowerStatus();
+    switch (pwrStatus) {
+        case PD_POWER_FIXED:
+            PD_Ready  = 1;
+            PD_Option = 0;      // Fixed PDO
+            break;
+        case PD_POWER_PPS:
+            PD_Ready  = 1;
+            PD_Option = 1;      // PPS
+            break;
+        default:
+            PD_Ready  = 0;
+            PD_Option = 3;      // 监听/未知
+            break;
+    }
+    
+    // Source Cap 信息
+    PD_Src_Cap_Count = pdSniffer.getSourcePDOCount();
+    PD_Position      = pdSniffer.getSelectedPosition();
+    ccbus_used       = pdSniffer.getCCPin();       // 0=无, 1=CC1, 2=CC2
+    
+    // 调试输出 (可选, 每500ms)
+    static uint32_t lastDebug = 0;
+    if (millis() - lastDebug > 500) {
+        lastDebug = millis();
+        Serial.printf("[PD] %.2fV %.2fA %s CC%d Pkts:%u\r\n",
+            PD_Voltage, PD_Current,
+            pdSniffer.isPPS() ? "PPS" : "FIX",
+            ccbus_used,
+            pdSniffer.getPacketCount());
+    }
+}
+
+// ============================================================================
+// Set_PD_Power: PPS 调压/调流 (仅在主动Sink模式下有效)
+// ============================================================================
+void HAL::Set_PD_Power(float voltage, float current) {
+    // 注意: PD_Sniffer 是纯被动监听, 不支持主动请求
+    // 如需 PD 请求功能, 请使用 PD_Sink 类:
+    //   PD_Sink sink;
+    //   sink.begin(FUSB302_INT_PIN);
+    //   sink.setPPS(voltage, current);
+    
+    Serial.printf("[PD] Set_PD_Power(%.2fV, %.2fA) — Sniffer模式下不支持主动请求\r\n",
+                  voltage, current);
+    Serial.println("[PD] 提示: 替换为 PD_Sink 类即可启用 PD 请求功能");
+}
+
+void HAL::QC_Init() {
+    // Quick Charge initialization code can be added here
+    Serial.println("Quick Charge Init!");
+    digitalWrite(DP_PIN, 75);
+    delay(1250);
+    digitalWrite(DP_PIN, 0);
+}
+
+void HAL::QC_Run() {
+    // Quick Charge run code can be added here
+    // For now, just a placeholder
+    Serial.println("Quick Charge Run!");
+}
+//开学了，项目搁置一会，后续会把菜单完善

@@ -1,28 +1,21 @@
+// ============================================================
+// Buzzer module
+// ============================================================
 #include "hal.h"
-#include "Config.h"
 
-HAL::Buzzer_status_t Buzzer;
-
-//初始化，短响一次
-void HAL::Buzzer_Init() {
-    ledcSetup(0, BUZZER_FREQUENCY, 8);
-    ledcAttachPin(BUZZER_PIN, 0);
-    Buzzer.BuzzerMute = false;
-    HAL::Buzzer_Short(); // beep
+void HAL::Buzzer_Init()
+{
+    pinMode(BUZZER_PIN, OUTPUT);
+    digitalWrite(BUZZER_PIN, LOW);
 }
 
-//短响
-void HAL::Buzzer_Short() {
-    if (Buzzer.BuzzerMute) return;
-    ledcWriteTone(0, BUZZER_FREQUENCY);
-    delay(40);
-    ledcWriteTone(0, 0);
+void HAL::Buzzer_Beep(uint16_t ms)
+{
+    if (Buzzer.mute) return;
+    tone(BUZZER_PIN, BUZZER_FREQ, ms);
 }
 
-//长响
-void HAL::Buzzer_Long() {
-    if (Buzzer.BuzzerMute) return;
-    ledcWriteTone(0, BUZZER_FREQUENCY);
-    delay(1000);
-    ledcWriteTone(0, 0);
+void HAL::Buzzer_SetMute(bool mute)
+{
+    Buzzer.mute = mute;
 }

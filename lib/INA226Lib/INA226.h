@@ -1,12 +1,13 @@
 /*
-INA226.h - Header file for the Bi-directional Current/Power Monitor Arduino Library.
+INA226.h - Header file for INA226 High-Side/Low-Side Current/Power Monitor Arduino Library.
 
-(c) 2014 Korneliusz Jarzebski, modified 2020 by Peter Buchegger
-www.jarzebski.pl
+(c) 2026 BaiHengRui
+Refer to TI INA226 Datasheet for details.
 
 This program is free software: you can redistribute it and/or modify
-it under the terms of the version 3 GNU General Public License as
-published by the Free Software Foundation.
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -20,12 +21,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef INA226_h
 #define INA226_h
 
-#if ARDUINO >= 100
 #include "Arduino.h"
-#include "Wire.h"
-#else
-#include "WProgram.h"
-#endif
+#include <Wire.h>
+
 
 #define INA226_ADDRESS              (0x40)
 
@@ -37,6 +35,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define INA226_REG_CALIBRATION      (0x05)
 #define INA226_REG_MASKENABLE       (0x06)
 #define INA226_REG_ALERTLIMIT       (0x07)
+
+// New Code for Get Manufacturer and Die ID
+#define INA226_REG_MANUFACTURER_ID  (0xFE)
+#define INA226_REG_DIE_ID           (0xFF)
 
 #define INA226_BIT_SOL              (0x8000)
 #define INA226_BIT_SUL              (0x4000)
@@ -62,29 +64,16 @@ typedef enum
     INA226_AVERAGES_1024          = 0b111
 } ina226_averages_t;
 
-typedef enum
-{
-    INA226_BUS_CONV_TIME_140US    = 0b000,
-    INA226_BUS_CONV_TIME_204US    = 0b001,
-    INA226_BUS_CONV_TIME_332US    = 0b010,
-    INA226_BUS_CONV_TIME_588US    = 0b011,
-    INA226_BUS_CONV_TIME_1100US   = 0b100,
-    INA226_BUS_CONV_TIME_2116US   = 0b101,
-    INA226_BUS_CONV_TIME_4156US   = 0b110,
-    INA226_BUS_CONV_TIME_8244US   = 0b111
-} ina226_busConvTime_t;
-
-typedef enum
-{
-    INA226_SHUNT_CONV_TIME_140US   = 0b000,
-    INA226_SHUNT_CONV_TIME_204US   = 0b001,
-    INA226_SHUNT_CONV_TIME_332US   = 0b010,
-    INA226_SHUNT_CONV_TIME_588US   = 0b011,
-    INA226_SHUNT_CONV_TIME_1100US  = 0b100,
-    INA226_SHUNT_CONV_TIME_2116US  = 0b101,
-    INA226_SHUNT_CONV_TIME_4156US  = 0b110,
-    INA226_SHUNT_CONV_TIME_8244US  = 0b111
-} ina226_shuntConvTime_t;
+typedef enum {
+    INA226_CONV_TIME_140US   = 0b000,
+    INA226_CONV_TIME_204US   = 0b001,
+    INA226_CONV_TIME_332US   = 0b010,
+    INA226_CONV_TIME_588US   = 0b011,
+    INA226_CONV_TIME_1100US  = 0b100,
+    INA226_CONV_TIME_2116US  = 0b101,
+    INA226_CONV_TIME_4156US  = 0b110,
+    INA226_CONV_TIME_8244US  = 0b111,
+} ina226_convTime_t;
 
 typedef enum
 {
@@ -101,37 +90,37 @@ typedef enum
 class INA226
 {
     public:
-	
 	explicit INA226(TwoWire &w);
+
 	bool begin(uint8_t address = INA226_ADDRESS);
-	bool configure(ina226_averages_t avg = INA226_AVERAGES_1, ina226_busConvTime_t busConvTime = INA226_BUS_CONV_TIME_1100US, ina226_shuntConvTime_t shuntConvTime = INA226_SHUNT_CONV_TIME_1100US, ina226_mode_t mode = INA226_MODE_SHUNT_BUS_CONT);
+	bool configure(ina226_averages_t avg = INA226_AVERAGES_1, ina226_convTime_t busConvTime = INA226_CONV_TIME_1100US, ina226_convTime_t shuntConvTime = INA226_CONV_TIME_1100US, ina226_mode_t mode = INA226_MODE_SHUNT_BUS_CONT);
 	bool calibrate(float rShuntValue = 0.1, float iMaxCurrentExcepted = 2);
 
 	ina226_averages_t getAverages(void);
-	ina226_busConvTime_t getBusConversionTime(void);
-	ina226_shuntConvTime_t getShuntConversionTime(void);
+    ina226_convTime_t getConversionTime(void);
 	ina226_mode_t getMode(void);
+    
+	bool enableShuntOverLimitAlert(void);
+        bool enableShuntUnderLimitAlert(void);
+	bool enableBusOvertLimitAlert(void);
+	bool enableBusUnderLimitAlert(void);
+	bool enableOverPowerLimitAlert(void);
+	bool enableConversionReadyAlert(void);
 
-	void enableShuntOverLimitAlert(void);
-	void enableShuntUnderLimitAlert(void);
-	void enableBusOvertLimitAlert(void);
-	void enableBusUnderLimitAlert(void);
-	void enableOverPowerLimitAlert(void);
-	void enableConversionReadyAlert(void);
+	bool setBusVoltageLimit(float voltage);
+	bool setShuntVoltageLimit(float voltage);
+	bool setPowerLimit(float watts);
 
-	void setBusVoltageLimit(float voltage);
-	void setShuntVoltageLimit(float voltage);
-	void setPowerLimit(float watts);
-
-	void setAlertInvertedPolarity(bool inverted);
-	void setAlertLatch(bool latch);
+	bool setAlertInvertedPolarity(bool inverted);
+	bool setAlertLatch(bool latch);
 
 	bool isMathOverflow(void);
 	bool isAlert(void);
+	bool isConversionReady(void);
 
-	float readShuntCurrent(void);
+	float readCurrent(void);
 	float readShuntVoltage(void);
-	float readBusPower(void);
+	float readPower(void);
 	float readBusVoltage(void);
 
 	float getMaxPossibleCurrent(void);
@@ -139,18 +128,24 @@ class INA226
 	float getMaxShuntVoltage(void);
 	float getMaxPower(void);
 
+    uint16_t getManufacturerID(void);
+    uint16_t readDeviceID(void);
+    
 private:
-
-	TwoWire *wire;
+    TwoWire *wire;
 
 	int8_t inaAddress;
-	float currentLSB, powerLSB;
-	float vShuntMax, vBusMax, rShunt;
+	float currentLSB;
+	float powerLSB;
+	float vShuntMax;
+	float vBusMax;
+	float rShunt;
 
-	void setMaskEnable(uint16_t mask);
-	uint16_t getMaskEnable(void);
+        bool addMaskEnableBit(uint16_t mask);
+        bool setMaskEnable(uint16_t mask);
+        uint16_t getMaskEnable(void);
 
-	void writeRegister16(uint8_t reg, uint16_t val);
+	bool writeRegister16(uint8_t reg, uint16_t val);
 	int16_t readRegister16(uint8_t reg);
 };
 
